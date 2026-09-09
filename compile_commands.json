@@ -1,0 +1,162 @@
+[
+  {
+    "file": "src/builtin.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/builtin.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "src/env_list.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/env_list.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "src/grammar.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/grammar.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "src/list.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/list.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "src/lval.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/lval.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "src/main.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "src/main.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "vendor/mpc/mpc.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "vendor/mpc/mpc.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  },
+  {
+    "file": "vendor/arenas/arenas.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-g",
+      "-O0",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "vendor/arenas/arenas.c",
+      "-o",
+      "run"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/my-lisp",
+    "output": "run"
+  }
+]
