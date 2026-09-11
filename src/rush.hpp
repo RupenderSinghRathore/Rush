@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <string>
 #include <termios.h>
 #include <unistd.h>
@@ -27,13 +28,14 @@ struct Token {
 class Tokenizer {
   public:
     std::vector<Token> tokens;
-    char quote;
-    bool started;
     Token token;
+    char quote = '\0';
+    bool started = false;
 
     Tokenizer() = default;
 
     void consume_char(char c);
+    bool finish_tokenizer();
 };
 
 class Shell {
@@ -45,6 +47,12 @@ class Shell {
     Shell() = default;
 
     void repl();
+    void execute_command();
+    void write_char(char c);
+    void write_str(const std::string &s);
+
+    template <typename... Args>
+    void write_err(std::format_string<Args...> fmt, Args &&...args);
 };
 
 /* GRAMMER
