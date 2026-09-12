@@ -43,11 +43,14 @@ void Shell::repl() {
                 continue;
             }
 
-            // TODO: Parser
+            parser.reset(std::move(tokenizer.tokens));
+            auto expr = parser.parse_start();
 
-            term.exit_raw_mode();
-            execute_command();
-            term.enter_raw_mode();
+            // TODO: Evaluation function
+
+            // term.exit_raw_mode();
+            // execute_command();
+            // term.enter_raw_mode();
 
             tokenizer.tokens.clear();
             write_str(PROMPT);
@@ -95,6 +98,8 @@ bool Tokenizer::finish_tokenizer() {
             tokens.empty() ? TokenType::Identifier : TokenType::Constant;
         tokens.push_back(std::move(token));
         token.text.clear();
+        started = false;
+        token = {};
     }
     return true;
 }
