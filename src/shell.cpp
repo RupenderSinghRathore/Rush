@@ -23,6 +23,8 @@ void Shell::write_err(std::format_string<Args...> fmt, Args &&...args) {
 }
 
 void Shell::repl() {
+    term.enter_raw_mode();
+
     char c;
     write_str(PROMPT);
     while (1) {
@@ -62,6 +64,7 @@ void Shell::repl() {
             // Potentially Alt or an escape sequence
         }
     }
+    term.exit_raw_mode();
 }
 
 void Tokenizer::consume_char(char c) {
