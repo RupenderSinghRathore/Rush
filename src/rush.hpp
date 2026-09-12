@@ -21,7 +21,13 @@ class Terminal {
     void exit_raw_mode();
 };
 
-enum class TokenType { Identifier, Constant, Operator, End };
+enum class TokenType {
+    Identifier = 0,
+    Constant,
+    Infix_Operator,
+    Postfix_Operator,
+    Unknown
+};
 struct Token {
     TokenType type;
     std::string text;
@@ -44,15 +50,16 @@ class Tokenizer {
 Terminals (TokenTypes)
 
 Start -> Expr
-Expr -> Term (Operator Term)*
-Term -> Identifier Args
-Args -> (Constant)*
+Expr -> Term (Infix_Operator Term)*
+Term -> Identifier Args Postfix_Operator?
+Args -> Constant*
 
 */
 
 struct Term {
     std::string name;
     std::vector<std::string> args;
+    std::string postfix_op;
 };
 struct Expr {
     Term left;
@@ -107,9 +114,16 @@ class Parser {
         }
         return t.text;
     }
-    std::string expect_operator() {
+    std::string expect_infix_operator() {
         Token t = advance();
-        if (t.type != TokenType::Operator) {
+        if (t.type != TokenType::Infix_Operator) {
+            throw std::runtime_error("expected Operator, got: " + t.text);
+        }
+        return t.text;
+    }
+    std::string expect_postfix_operator() {
+        Token t = advance();
+        if (t.type != TokenType::Postfix_Operator) {
             throw std::runtime_error("expected Operator, got: " + t.text);
         }
         return t.text;
@@ -117,17 +131,21 @@ class Parser {
     Expr parse_expr() {
         auto left = parse_term();
         std::vector<std::pair<std::string, Term>> rest;
-        while (peek() && peek()->type == TokenType::Operator) {
-            auto op = expect_operator();
+        while (peek() && peek()->type == TokenType::Infix_Operator) {
+            auto op = expect_infix_operator();
             auto term = parse_term();
             rest.push_back({std::move(op), std::move(term)});
         }
         return Expr(std::move(left), std::move(rest));
     }
     Term parse_term() {
-        auto identifier = expect_identifier();
-        auto args = parse_args();
-        return Term(std::move(identifier), std::move(args));
+        auto term = Term{};
+        term.name = expect_identifier();
+        term.args = parse_args();
+        if (peek() && peek()->type == TokenType::Postfix_Operator) {
+            term.postfix_op = expect_postfix_operator();
+        }
+        return term;
     }
     std::vector<std::string> parse_args() {
         std::vector<std::string> args;
