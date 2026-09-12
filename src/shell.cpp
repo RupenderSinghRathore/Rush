@@ -67,6 +67,9 @@ void Shell::repl() {
     term.exit_raw_mode();
 }
 
+bool is_identifier_start(char c) { return isalpha(c) || c == '_'; }
+bool is_identifier(char c) { return isalnum(c) || c == '_'; }
+
 void Tokenizer::consume_char(char c) {
     if (quote) {
         if (c == quote)
@@ -77,6 +80,14 @@ void Tokenizer::consume_char(char c) {
     }
     if (std::isspace(static_cast<unsigned char>(c))) {
         if (started) {
+            if (token.type == TokenType::Identifier) {
+                token.type = TokenType::Unknown;
+            } else if (token.type == TokenType::Unknown) {
+                // TODO: operator check
+
+                token.type = TokenType::Constant;
+            }
+
             tokens.push_back(std::move(token));
             token.text.clear();
             started = false;
@@ -87,6 +98,22 @@ void Tokenizer::consume_char(char c) {
         quote = c;
         started = true;
         return;
+    }
+
+    if (token.type == TokenType::Identifier) {
+        if (token.text.empty()) {
+            if (is_identifier_start(c)) {
+                token.text.push_back(c);
+                started = true;
+                return;
+            }
+        } else if (is_identifier(c)) {
+            token.text.push_back(c);
+            return;
+        }
+        throw std::runtime_error(
+            "unexpected trailing character: " + std::string(1, c)
+        );
     }
 
     token.text.push_back(c);
@@ -102,8 +129,9 @@ bool Tokenizer::finish_tokenizer() {
         tokens.push_back(std::move(token));
         token.text.clear();
         started = false;
-        token = {};
     }
+
+    token = {};
     return true;
 }
 
