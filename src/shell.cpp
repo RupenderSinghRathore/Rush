@@ -1,11 +1,11 @@
 #include "rush.hpp"
 #include <cassert>
 #include <cctype>
-#include <cstdio>
 #include <print>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 // extract lower 5 bits
 #define CTRL_KEY(k) ((k) & 0x1f)
@@ -13,6 +13,7 @@
 const char Enter = '\r';
 
 void Shell::write_char(char c) { write(STDOUT_FILENO, &c, 1); }
+
 void Shell::write_str(const std::string &s) {
     write(STDOUT_FILENO, s.data(), s.size());
 }
@@ -38,21 +39,15 @@ void Shell::repl() {
             write_str("\r\n");
             if (!tokenizer.finish_tokenizer()) {
                 write_char(' ');
-            }
-
-            if (tokenizer.tokens.empty()) {
-                write_str(PROMPT);
                 continue;
             }
 
             parser.reset(std::move(tokenizer.tokens));
-            auto expr = parser.parse_start();
+            auto ast = parser.parse_start();
 
-            // TODO: Evaluation function
-
-            // term.exit_raw_mode();
-            // execute_command();
-            // term.enter_raw_mode();
+            term.exit_raw_mode();
+            process_expr(ast);
+            term.enter_raw_mode();
 
             tokenizer.tokens.clear();
             write_str(PROMPT);
@@ -67,8 +62,12 @@ void Shell::repl() {
     term.exit_raw_mode();
 }
 
-bool is_identifier_start(char c) { return isalpha(c) || c == '_'; }
-bool is_identifier(char c) { return isalnum(c) || c == '_'; }
+bool is_identifier_start(char c) {
+    return isalpha(c) || c == '_' || c == '.' || c == '/';
+}
+bool is_identifier(char c) {
+    return isalnum(c) || c == '_' || c == '.' || c == '/';
+}
 
 void Tokenizer::consume_char(char c) {
     if (quote) {
@@ -80,6 +79,11 @@ void Tokenizer::consume_char(char c) {
     }
     if (std::isspace(static_cast<unsigned char>(c))) {
         if (started) {
+
+            tokens.push_back(std::move(token));
+            token.text.clear();
+            started = false;
+
             if (token.type == TokenType::Identifier) {
                 token.type = TokenType::Unknown;
             } else if (token.type == TokenType::Unknown) {
@@ -87,10 +91,6 @@ void Tokenizer::consume_char(char c) {
 
                 token.type = TokenType::Constant;
             }
-
-            tokens.push_back(std::move(token));
-            token.text.clear();
-            started = false;
         }
         return;
     }
@@ -124,32 +124,11 @@ bool Tokenizer::finish_tokenizer() {
         return false;
     }
     if (started) {
-        token.type =
-            tokens.empty() ? TokenType::Identifier : TokenType::Constant;
+        if (token.type == TokenType::Unknown) token.type = TokenType::Constant;
         tokens.push_back(std::move(token));
-        token.text.clear();
         started = false;
     }
 
     token = {};
     return true;
-}
-
-void Shell::execute_command() {
-    auto pid = fork();
-    if (pid == 0) {
-        std::vector<char *> cmd;
-        for (auto &t : tokenizer.tokens) {
-            cmd.push_back(t.text.data());
-        }
-        cmd.push_back(nullptr);
-        execvp(cmd[0], cmd.data());
-        write_err("unrecognized command: {}\n", cmd[0]);
-        _exit(127);
-    } else if (pid < 0) {
-        perror("error in fork");
-        exit(1);
-    }
-    int status;
-    waitpid(pid, &status, 0);
 }

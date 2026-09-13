@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdio>
+#include <cstdlib>
 #include <format>
 #include <string>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 #include <vector>
@@ -45,7 +47,7 @@ class Tokenizer {
     bool finish_tokenizer();
 };
 
-/* GRAMMER
+/* GRAMMAR
 
 Terminals (TokenTypes)
 
@@ -64,9 +66,6 @@ struct Term {
 struct Expr {
     Term left;
     std::vector<std::pair<std::string, Term>> rest;
-};
-struct Start {
-    Expr expr;
 };
 
 class Parser {
@@ -166,10 +165,40 @@ class Shell {
     Shell() = default;
 
     void repl();
-    void execute_command();
-    void write_char(char c);
-    void write_str(const std::string &s);
+    void execute_command(std::vector<char *> cmd) {
+        auto pid = fork();
+        if (pid == 0) {
+            execvp(cmd[0], cmd.data());
+            write_err("unrecognized command: {}\n", cmd[0]);
+            _exit(127);
+        } else if (pid < 0) {
+            perror("error in fork");
+            exit(1);
+        }
+        int status;
+        waitpid(pid, &status, 0);
+        if (status != 0) {
+            write_str("returned " + std::to_string(WEXITSTATUS(status)) + "\n");
+        }
+    }
+    void process_expr(Expr expr) {
+        process_term(expr.left);
 
+        // TODO: Process rest of expr
+    }
+    void process_term(Term term) {
+        std::vector<char *> cmd;
+        cmd.push_back(term.name.data());
+        for (auto arg : term.args) {
+            cmd.push_back(arg.data());
+        }
+        // TODO: process postfix operators
+
+        execute_command(cmd);
+    }
+
+    void write_char(char c);
     template <typename... Args>
     void write_err(std::format_string<Args...> fmt, Args &&...args);
+    void write_str(const std::string &s);
 };
