@@ -1,4 +1,4 @@
-#include "rush.hpp"
+#include "rush/shell.hpp"
 
 int main() {
     auto shell = Shell();

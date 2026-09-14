@@ -3,7 +3,7 @@ CXX = g++
 STD = -std=c++23
 WARNINGS = -Wall -Wextra -Wpedantic
 MEMORY_CHECKS = -fsanitize=address,undefined -fno-omit-frame-pointer
-INCLUDES = -Ivendor/mpc -Ivendor/arenas
+INCLUDES = -Iinclude -Ivendor/mpc -Ivendor/arenas
 
 # Find all C++ source files
 SRC := $(shell find src vendor -name "*.cpp" -o -name "*.cc" -o -name "*.cxx")

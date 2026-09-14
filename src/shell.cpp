@@ -1,134 +1,130 @@
-#include "rush.hpp"
-#include <cassert>
-#include <cctype>
-#include <print>
+#include "rush/shell.hpp"
+
+#include "rush/io.hpp"
+
+#include <cstdlib>
+#include <exception>
+#include <format>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
-// extract lower 5 bits
-#define CTRL_KEY(k) ((k) & 0x1f)
-
-const char Enter = '\r';
-
-void Shell::write_char(char c) { write(STDOUT_FILENO, &c, 1); }
-
-void Shell::write_str(const std::string &s) {
-    write(STDOUT_FILENO, s.data(), s.size());
-}
-
-template <typename... Args>
-void Shell::write_err(std::format_string<Args...> fmt, Args &&...args) {
-    std::print(stderr, fmt, std::forward<Args>(args)...);
-}
-
 void Shell::repl() {
     term.enter_raw_mode();
-
-    char c;
-    write_str(PROMPT);
+    write_str("> ");
     while (1) {
-        int r = read(STDIN_FILENO, &c, 1);
-        assert(r == 1);
-
-        if (!std::iscntrl(c)) {
-            tokenizer.consume_char(c);
-            write_char(c);
-        } else if (c == Enter) {
-            write_str("\r\n");
-            if (!tokenizer.finish_tokenizer()) {
-                write_char(' ');
-                continue;
-            }
-
-            parser.reset(std::move(tokenizer.tokens));
-            auto ast = parser.parse_start();
-
-            term.exit_raw_mode();
-            process_expr(ast);
-            term.enter_raw_mode();
-
-            tokenizer.tokens.clear();
-            write_str(PROMPT);
-        }
-        if (c == CTRL_KEY('Q')) {
-            break;
-        }
-        if (c == '\x1b') {
-            // Potentially Alt or an escape sequence
-        }
+        auto key = term.read_key();
+        eval_key(key);
     }
     term.exit_raw_mode();
 }
 
-bool is_identifier_start(char c) {
-    return isalpha(c) || c == '_' || c == '.' || c == '/';
-}
-bool is_identifier(char c) {
-    return isalnum(c) || c == '_' || c == '.' || c == '/';
-}
+void Shell::eval_key(Key key) {
 
-void Tokenizer::consume_char(char c) {
-    if (quote) {
-        if (c == quote)
-            quote = '\0';
-        else
-            token.text.push_back(c);
-        return;
-    }
-    if (std::isspace(static_cast<unsigned char>(c))) {
-        if (started) {
+    switch (key.type) {
+    case KeyType::Backspace:
+        editor.delete_char();
+        term.draw(editor.text(), editor.cursor());
+        break;
 
-            tokens.push_back(std::move(token));
-            token.text.clear();
-            started = false;
-
-            if (token.type == TokenType::Identifier) {
-                token.type = TokenType::Unknown;
-            } else if (token.type == TokenType::Unknown) {
-                // TODO: operator check
-
-                token.type = TokenType::Constant;
-            }
+    case KeyType::Ctrl:
+        switch (key.ch) {
+        case 'H':
+            editor.delete_char();
+            term.draw(editor.text(), editor.cursor());
+            break;
+        case 'Q':
+            term.exit_raw_mode();
+            exit(0);
         }
-        return;
-    }
-    if (c == '\'' || c == '"') {
-        quote = c;
-        started = true;
-        return;
-    }
+        break;
 
-    if (token.type == TokenType::Identifier) {
-        if (token.text.empty()) {
-            if (is_identifier_start(c)) {
-                token.text.push_back(c);
-                started = true;
-                return;
-            }
-        } else if (is_identifier(c)) {
-            token.text.push_back(c);
-            return;
+    case KeyType::Enter: {
+        term.new_line();
+        if (editor.is_empty()) {
+            term.draw();
+            break;
         }
-        throw std::runtime_error(
-            "unexpected trailing character: " + std::string(1, c)
-        );
+        editor.insert('\r');
+        editor.insert('\n');
+        tokenizer.tokenize(editor.text());
+        if (tokenizer.is_quoted()) {
+            write_char(' ');
+            tokenizer.clear();
+            break;
+        }
+        editor.clear();
+
+        if (!tokenizer.is_empty()) {
+            try {
+                parser.reset(tokenizer.owned_tokens());
+                auto expr = parser.parse_start();
+                term.exit_raw_mode();
+                eval_expr(expr);
+            } catch (std::exception &e) {
+                term.exit_raw_mode();
+                write_err(e.what());
+                exit(1);
+            }
+            term.enter_raw_mode();
+        }
+        tokenizer.clear();
+        write_str("> ");
+        break;
     }
 
-    token.text.push_back(c);
-    started = true;
+    case KeyType::Char:
+        editor.insert(key.ch);
+        write_char(key.ch);
+        break;
+
+    case KeyType::ArrowUp: /* history later */
+        break;
+    case KeyType::ArrowDown: /* history later */
+        break;
+    case KeyType::ArrowLeft: /* cursor move later */
+        break;
+    case KeyType::ArrowRight: /* cursor move later */
+        break;
+    case KeyType::Delete: /* forward delete */
+        break;
+    default:
+        break;
+    }
 }
-bool Tokenizer::finish_tokenizer() {
-    if (quote) {
-        return false;
-    }
-    if (started) {
-        if (token.type == TokenType::Unknown) token.type = TokenType::Constant;
-        tokens.push_back(std::move(token));
-        started = false;
-    }
 
-    token = {};
-    return true;
+void Shell::execute_command(std::vector<char *> cmd) {
+    auto pid = fork();
+    if (pid == 0) {
+        execvp(cmd[0], cmd.data());
+        auto msg = std::format("unrecognized command: {}\n", cmd[0]);
+        write_err(msg);
+        _exit(127);
+    } else if (pid < 0) {
+        perror("error in fork");
+        exit(1);
+    }
+    int status;
+    waitpid(pid, &status, 0);
+    if (status != 0) {
+        write_str("returned " + std::to_string(WEXITSTATUS(status)) + "\n");
+    }
+}
+
+void Shell::eval_expr(Expr expr) {
+    eval_term(expr.left);
+
+    // TODO: Process rest of expr
+}
+
+void Shell::eval_term(Term term) {
+    std::vector<char *> cmd;
+    cmd.push_back(term.name.data());
+    for (auto arg : term.args) {
+        cmd.push_back(arg.data());
+    }
+    // TODO: process postfix operators
+
+    execute_command(cmd);
 }
