@@ -1,5 +1,4 @@
 #include "rush/io.hpp"
-
 #include <unistd.h>
 
 void write_char(char c) { write(STDOUT_FILENO, &c, 1); }

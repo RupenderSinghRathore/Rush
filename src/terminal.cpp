@@ -45,19 +45,28 @@ Key Terminal::read_key() {
                     return {KeyType::Unknown};
                 if (seq[2] == '~') {
                     switch (seq[1]) {
-                    case '3': return {KeyType::Delete};
-                    case '5': return {KeyType::PageUp};
-                    case '6': return {KeyType::PageDown};
+                    case '3':
+                        return {KeyType::Delete};
+                    case '5':
+                        return {KeyType::PageUp};
+                    case '6':
+                        return {KeyType::PageDown};
                     }
                 }
             } else {
                 switch (seq[1]) {
-                case 'A': return {KeyType::ArrowUp};
-                case 'B': return {KeyType::ArrowDown};
-                case 'C': return {KeyType::ArrowRight};
-                case 'D': return {KeyType::ArrowLeft};
-                case 'H': return {KeyType::Home};
-                case 'F': return {KeyType::End};
+                case 'A':
+                    return {KeyType::ArrowUp};
+                case 'B':
+                    return {KeyType::ArrowDown};
+                case 'C':
+                    return {KeyType::ArrowRight};
+                case 'D':
+                    return {KeyType::ArrowLeft};
+                case 'H':
+                    return {KeyType::Home};
+                case 'F':
+                    return {KeyType::End};
                 }
             }
         }
@@ -72,12 +81,18 @@ Key Terminal::read_key() {
 }
 
 void Terminal::draw(std::string text, size_t cursor) {
-    write_str("\r\x1b[K");
-    write_str("> ");
+    if (cursor_row > 0) {
+        write_str(up(cursor_row));
+    }
+
+    // clear till end of screen
+    write_str("\r\x1b[J");
+
+    write_str(PROMPT);
     write_str(text);
 
     size_t back = text.size() - cursor;
-    if (back) write_str("\x1b[" + std::to_string(back) + "D");
+    if (back) write_str(left(back));
 }
 
 void Terminal::new_line() { write_str("\n\r"); }

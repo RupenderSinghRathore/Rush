@@ -12,12 +12,10 @@ size_t Editor::cursor() { return index; }
 
 void Editor::delete_char() {
     if (index == 0) return;
+    if (line[index - 1] == '\n') {
+        return;
+    }
     line.erase(line.begin() + --index);
-}
-
-char Editor::curr_char() {
-    if (index == 0) return '\0';
-    return line[index - 1];
 }
 
 void Editor::clear() {

@@ -28,10 +28,13 @@ struct Key {
     char ch = '\0';
 };
 
+#define PROMPT "> "
+
 class Terminal {
   private:
     termios original;
     termios raw;
+    size_t cursor_row = 0;
 
   public:
     Terminal();
@@ -40,4 +43,11 @@ class Terminal {
     Key read_key();
     void draw(std::string text = "", size_t cursor = 0);
     void new_line();
+
+    std::string up(int i) { return "\x1b[" + std::to_string(i) + "A"; }
+    std::string down(int i) { return "\x1b[" + std::to_string(i) + "B"; }
+    std::string right(int i) { return "\x1b[" + std::to_string(i) + "C"; }
+    std::string left(int i) { return "\x1b[" + std::to_string(i) + "D"; }
+    void increment_row() { cursor_row++; };
+    void reset_row() { cursor_row = 0; };
 };

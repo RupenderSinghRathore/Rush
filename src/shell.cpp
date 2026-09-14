@@ -1,6 +1,7 @@
 #include "rush/shell.hpp"
 
 #include "rush/io.hpp"
+#include "rush/terminal.hpp"
 
 #include <cstdlib>
 #include <exception>
@@ -12,7 +13,7 @@
 
 void Shell::repl() {
     term.enter_raw_mode();
-    write_str("> ");
+    write_str(PROMPT);
     while (1) {
         auto key = term.read_key();
         eval_key(key);
@@ -50,7 +51,7 @@ void Shell::eval_key(Key key) {
         editor.insert('\n');
         tokenizer.tokenize(editor.text());
         if (tokenizer.is_quoted()) {
-            write_char(' ');
+            term.increment_row();
             tokenizer.clear();
             break;
         }
@@ -70,7 +71,8 @@ void Shell::eval_key(Key key) {
             term.enter_raw_mode();
         }
         tokenizer.clear();
-        write_str("> ");
+        term.reset_row();
+        write_str(PROMPT);
         break;
     }
 
@@ -99,7 +101,7 @@ void Shell::execute_command(std::vector<char *> cmd) {
     if (pid == 0) {
         execvp(cmd[0], cmd.data());
         auto msg = std::format("unrecognized command: {}\n", cmd[0]);
-        write_err(msg);
+        write_err(std::move(msg));
         _exit(127);
     } else if (pid < 0) {
         perror("error in fork");
@@ -108,7 +110,7 @@ void Shell::execute_command(std::vector<char *> cmd) {
     int status;
     waitpid(pid, &status, 0);
     if (status != 0) {
-        write_str("returned " + std::to_string(WEXITSTATUS(status)) + "\n");
+        write_err("returned " + std::to_string(WEXITSTATUS(status)) + "\n");
     }
 }
 
