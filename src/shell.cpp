@@ -21,19 +21,64 @@ void Shell::repl() {
     term.exit_raw_mode();
 }
 
+void Shell::handle_backspace() {
+    editor.delete_char();
+    term.draw(editor.text(), editor.cursor());
+}
+
+void Shell::handle_enter() {
+    term.new_line();
+    if (editor.is_empty()) {
+        term.draw();
+        return;
+    }
+    editor.insert('\r');
+    editor.insert('\n');
+    tokenizer.tokenize(editor.text());
+    if (tokenizer.is_quoted()) {
+        term.increment_row();
+        tokenizer.clear();
+        return;
+    }
+    editor.clear();
+
+    if (!tokenizer.is_empty()) {
+        try {
+            parser.reset(tokenizer.owned_tokens());
+            auto expr = parser.parse_start();
+            term.exit_raw_mode();
+            eval_expr(expr);
+        } catch (std::exception &e) {
+            term.exit_raw_mode();
+            write_err(e.what());
+            exit(1);
+        }
+        term.enter_raw_mode();
+    }
+    tokenizer.clear();
+    term.reset_row();
+    term.draw();
+}
+
 void Shell::eval_key(Key key) {
 
     switch (key.type) {
     case KeyType::Backspace:
-        editor.delete_char();
-        term.draw(editor.text(), editor.cursor());
+        handle_backspace();
         break;
 
     case KeyType::Ctrl:
         switch (key.ch) {
         case 'H':
-            editor.delete_char();
-            term.draw(editor.text(), editor.cursor());
+            handle_backspace();
+            break;
+        case 'C':
+            editor.clear();
+            term.draw();
+            term.reset_row();
+            break;
+        case 'M':
+            handle_enter();
             break;
         case 'Q':
             term.exit_raw_mode();
@@ -42,37 +87,7 @@ void Shell::eval_key(Key key) {
         break;
 
     case KeyType::Enter: {
-        term.new_line();
-        if (editor.is_empty()) {
-            term.draw();
-            break;
-        }
-        editor.insert('\r');
-        editor.insert('\n');
-        tokenizer.tokenize(editor.text());
-        if (tokenizer.is_quoted()) {
-            term.increment_row();
-            tokenizer.clear();
-            break;
-        }
-        editor.clear();
-
-        if (!tokenizer.is_empty()) {
-            try {
-                parser.reset(tokenizer.owned_tokens());
-                auto expr = parser.parse_start();
-                term.exit_raw_mode();
-                eval_expr(expr);
-            } catch (std::exception &e) {
-                term.exit_raw_mode();
-                write_err(e.what());
-                exit(1);
-            }
-            term.enter_raw_mode();
-        }
-        tokenizer.clear();
-        term.reset_row();
-        write_str(PROMPT);
+        handle_enter();
         break;
     }
 

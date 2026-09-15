@@ -19,6 +19,9 @@ class Shell {
 
     void repl();
     void eval_key(Key key);
+    void handle_backspace();
+    void handle_enter();
+
     void execute_command(std::vector<char *> cmd);
     void eval_expr(Expr expr);
     void eval_term(Term term);
