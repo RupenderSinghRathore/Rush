@@ -1,8 +1,13 @@
 #include "rush/editor.hpp"
 
+#include <string>
 #include <utility>
 
 void Editor::insert(char ch) { line.insert(line.begin() + index++, ch); }
+void Editor::insert(std::string s) {
+    line.insert(index, s);
+    index += s.size();
+}
 
 std::string Editor::text() { return line; }
 

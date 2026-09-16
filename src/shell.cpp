@@ -29,18 +29,21 @@ void Shell::handle_backspace() {
 void Shell::handle_enter() {
     term.new_line();
     if (editor.is_empty()) {
-        term.draw();
-        return;
+        goto redraw;
     }
-    editor.insert('\r');
-    editor.insert('\n');
-    tokenizer.tokenize(editor.text());
+    editor.insert("\r\n");
+    try {
+        tokenizer.tokenize(editor.text());
+    } catch (std::exception &e) {
+        write_err(e.what());
+        term.new_line();
+        goto redraw;
+    }
     if (tokenizer.is_quoted()) {
         term.increment_row();
         tokenizer.clear();
         return;
     }
-    editor.clear();
 
     if (!tokenizer.is_empty()) {
         try {
@@ -49,14 +52,16 @@ void Shell::handle_enter() {
             term.exit_raw_mode();
             eval_expr(expr);
         } catch (std::exception &e) {
-            term.exit_raw_mode();
             write_err(e.what());
-            exit(1);
         }
         term.enter_raw_mode();
     }
+
+redraw:
+    editor.clear();
     tokenizer.clear();
     term.reset_row();
+    reap_bg_processes();
     term.draw();
 }
 
@@ -111,21 +116,60 @@ void Shell::eval_key(Key key) {
     }
 }
 
-void Shell::execute_command(std::vector<char *> cmd) {
+void Shell::execute_command(std::vector<char *> cmd, bool background_process) {
     auto pid = fork();
     if (pid == 0) {
         execvp(cmd[0], cmd.data());
-        auto msg = std::format("unrecognized command: {}\n", cmd[0]);
+        auto msg = std::format("unrecognized command: {}\r\n", cmd[0]);
         write_err(std::move(msg));
         _exit(127);
     } else if (pid < 0) {
         perror("error in fork");
         exit(1);
     }
-    int status;
-    waitpid(pid, &status, 0);
-    if (status != 0) {
-        write_err("returned " + std::to_string(WEXITSTATUS(status)) + "\n");
+    int status = 0;
+    if (background_process) {
+        write_str(std::format("[{}]\r\n", std::to_string(pid)));
+        bg_processes.insert(pid);
+    } else {
+        waitpid(pid, &status, 0);
+        if (status != 0) {
+            write_err(
+                "returned " + std::to_string(WEXITSTATUS(status)) + "\r\n"
+            );
+        }
+    }
+}
+
+void Shell::reap_bg_processes() {
+    auto curr = bg_processes.root;
+    while (curr) {
+        int status = 0;
+        auto ret = waitpid(curr->pid, &status, WNOHANG);
+        if (ret == curr->pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
+            if (WIFEXITED(status)) {
+                write_str(
+                    std::format(
+                        "[{}], exited with status: {}\r\n",
+                        std::to_string(curr->pid),
+                        std::to_string(WEXITSTATUS(status))
+                    )
+                );
+            } else {
+                write_str(
+                    std::format(
+                        "[{}], killed by signal: {}\r\n",
+                        std::to_string(curr->pid),
+                        std::to_string(WTERMSIG(status))
+                    )
+                );
+            }
+            auto next = curr->next;
+            bg_processes.remove(curr);
+            curr = next;
+        } else {
+            curr = curr->next;
+        }
     }
 }
 
@@ -141,7 +185,11 @@ void Shell::eval_term(Term term) {
     for (auto arg : term.args) {
         cmd.push_back(arg.data());
     }
-    // TODO: process postfix operators
+    bool background_process = false;
+    if (!term.postfix_op.empty()) {
+        // write_str("using " + term.postfix_op + " operator");
+        background_process = true;
+    }
 
-    execute_command(cmd);
+    execute_command(cmd, background_process);
 }

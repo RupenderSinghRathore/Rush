@@ -11,6 +11,7 @@ class Editor {
   public:
     Editor() = default;
     void insert(char ch);
+    void insert(std::string s);
     std::string text();
     std::string owned_text();
     size_t cursor();

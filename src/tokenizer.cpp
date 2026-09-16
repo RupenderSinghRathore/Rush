@@ -2,12 +2,22 @@
 
 #include <cctype>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <utility>
 
 void Tokenizer::tokenize(std::string line) {
     for (auto c : line) {
         consume_char(c);
     }
+}
+
+// || & && ; ;; ;& ;;& ( ) | |& <newline>
+constexpr std::string_view BACKGROUND_POSTFIX_OP = "&";
+
+TokenType Tokenizer::check_operator() {
+    if (token.text == BACKGROUND_POSTFIX_OP) return TokenType::Postfix_Operator;
+    return TokenType::Unknown;
 }
 
 void Tokenizer::consume_char(char c) {
@@ -21,17 +31,19 @@ void Tokenizer::consume_char(char c) {
     if (std::isspace(static_cast<unsigned char>(c))) {
         if (started) {
             if (token.type == TokenType::Unknown) {
-                // TODO: operator check
-                token.type = TokenType::Constant;
+                token.type = check_operator();
+                if (token.type == TokenType::Unknown)
+                    token.type = TokenType::Constant;
             }
 
             tokens.push_back(std::move(token));
             token.text.clear();
             started = false;
 
-            if (token.type == TokenType::Identifier) {
+            if (token.type == TokenType::Infix_Operator)
+                token.type = TokenType::Identifier;
+            else
                 token.type = TokenType::Unknown;
-            }
         }
         return;
     }
@@ -69,13 +81,13 @@ void Tokenizer::clear() {
 }
 
 bool Tokenizer::is_identifier_start(char c) {
-    return std::isalpha(static_cast<unsigned char>(c)) || c == '_' || c == '.' ||
-           c == '/';
+    return std::isalpha(static_cast<unsigned char>(c)) || c == '_' ||
+           c == '.' || c == '/';
 }
 
 bool Tokenizer::is_identifier(char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.' ||
-           c == '/';
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_' ||
+           c == '.' || c == '/';
 }
 
 bool Tokenizer::is_quoted() { return quote; }

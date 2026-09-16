@@ -24,6 +24,7 @@ class Tokenizer {
 
     bool is_identifier_start(char c);
     bool is_identifier(char c);
+    TokenType check_operator();
 
   public:
     std::vector<Token> tokens;

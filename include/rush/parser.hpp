@@ -10,7 +10,7 @@
 struct Term {
     std::string name;
     std::vector<std::string> args;
-    std::string postfix_op;
+    std::string postfix_op = "";
 };
 
 struct Expr {
