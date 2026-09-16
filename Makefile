@@ -5,39 +5,50 @@ WARNINGS = -Wall -Wextra -Wpedantic
 MEMORY_CHECKS = -fsanitize=address,undefined -fno-omit-frame-pointer
 INCLUDES = -Iinclude -Ivendor/mpc -Ivendor/arenas
 
-# Find all C++ source files
-SRC := $(shell find src vendor -name "*.cpp" -o -name "*.cc" -o -name "*.cxx")
+SRC := $(shell find src vendor -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" \))
+OBJ := $(patsubst %.cpp,build/%.cpp.o,$(filter %.cpp,$(SRC))) \
+       $(patsubst %.cc,build/%.cc.o,$(filter %.cc,$(SRC))) \
+       $(patsubst %.cxx,build/%.cxx.o,$(filter %.cxx,$(SRC)))
 
-# System libraries
 LIBS = -ledit -lm
-# For sanitizers (needed at link time)
 LDFLAGS = $(MEMORY_CHECKS)
 
-# Binary location
 BINARY = bin/run
-BIN_DIR = bin
 
-debug: CXXFLAGS = -g -O0 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES)
-release: CXXFLAGS = -O2 -DNDEBUG $(STD) $(WARNINGS) $(INCLUDES)
+debug: CXXFLAGS = -g -O0 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES) -MMD -MP
+debug: $(BINARY)
 
-debug release: $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) $(SRC) $(LIBS) $(LDFLAGS) -o $(BINARY)
+release: CXXFLAGS = -O2 -DNDEBUG $(STD) $(WARNINGS) $(INCLUDES) -MMD -MP
+release: $(BINARY)
 
-# Create bin directory if it doesn't exist
-$(BIN_DIR):
-	@mkdir -p $(BIN_DIR)
+$(BINARY): $(OBJ) | bin
+	@$(CXX) $(OBJ) $(LIBS) $(LDFLAGS) -o $@
 
-# Get everything after 'run' as arguments
+build/%.cpp.o: %.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/%.cc.o: %.cc
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/%.cxx.o: %.cxx
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+-include $(OBJ:.o=.d)
+
+bin:
+	@mkdir -p $@
+
 ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 run: debug
 	@printf "\n"
 	@./$(BINARY) $(ARGS)
-	@$(MAKE) --no-print-directory clean
 
-# This line tells make to ignore the args
 $(ARGS): run
 	@:
 
-clean: 
-	@rm -rf $(BIN_DIR)
+clean:
+	@rm -rf build bin
