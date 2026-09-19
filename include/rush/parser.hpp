@@ -7,10 +7,21 @@
 #include <utility>
 #include <vector>
 
+/* GRAMMAR
+
+Terminals (TokenTypes)
+
+Start -> Expr
+Expr -> Term (Infix_Operator Term)*
+Term -> Identifier Args Postfix_Operator?
+Args -> Constant*
+
+*/
+
 struct Term {
     std::string name;
     std::vector<std::string> args;
-    std::string postfix_op = "";
+    std::string postfix_op;
 };
 
 struct Expr {
