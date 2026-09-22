@@ -5,11 +5,9 @@
 
 #include <cstdlib>
 #include <exception>
-#include <format>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <vector>
 
 void Shell::repl() {
     term.enter_raw_mode();
@@ -50,7 +48,7 @@ void Shell::handle_enter() {
             parser.reset(tokenizer.owned_tokens());
             auto expr = parser.parse_start();
             term.exit_raw_mode();
-            eval_expr(expr);
+            eval.eval_expr(expr);
         } catch (std::exception &e) {
             write_err(e.what());
         }
@@ -114,82 +112,4 @@ void Shell::eval_key(Key key) {
     default:
         break;
     }
-}
-
-void Shell::execute_command(std::vector<char *> cmd, bool background_process) {
-    auto pid = fork();
-    if (pid == 0) {
-        execvp(cmd[0], cmd.data());
-        auto msg = std::format("unrecognized command: {}\r\n", cmd[0]);
-        write_err(std::move(msg));
-        _exit(127);
-    } else if (pid < 0) {
-        perror("error in fork");
-        exit(1);
-    }
-    int status = 0;
-    if (background_process) {
-        write_str(std::format("[{}]\r\n", std::to_string(pid)));
-        bg_processes.insert(pid);
-    } else {
-        waitpid(pid, &status, 0);
-        if (status != 0) {
-            write_err(
-                "returned " + std::to_string(WEXITSTATUS(status)) + "\r\n"
-            );
-        }
-    }
-}
-
-void Shell::reap_bg_processes() {
-    auto curr = bg_processes.root;
-    while (curr) {
-        int status = 0;
-        auto ret = waitpid(curr->pid, &status, WNOHANG);
-        if (ret == curr->pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
-            if (WIFEXITED(status)) {
-                write_str(
-                    std::format(
-                        "[{}], exited with status: {}\r\n",
-                        std::to_string(curr->pid),
-                        std::to_string(WEXITSTATUS(status))
-                    )
-                );
-            } else {
-                write_str(
-                    std::format(
-                        "[{}], killed by signal: {}\r\n",
-                        std::to_string(curr->pid),
-                        std::to_string(WTERMSIG(status))
-                    )
-                );
-            }
-            auto next = curr->next;
-            bg_processes.remove(curr);
-            curr = next;
-        } else {
-            curr = curr->next;
-        }
-    }
-}
-
-void Shell::eval_expr(Expr expr) {
-    eval_term(expr.left);
-
-    // TODO: Process rest of expr
-}
-
-void Shell::eval_term(Term term) {
-    std::vector<char *> cmd;
-    cmd.push_back(term.name.data());
-    for (auto arg : term.args) {
-        cmd.push_back(arg.data());
-    }
-    bool background_process = false;
-    if (!term.postfix_op.empty()) {
-        // write_str("using " + term.postfix_op + " operator");
-        background_process = true;
-    }
-
-    execute_command(cmd, background_process);
 }
