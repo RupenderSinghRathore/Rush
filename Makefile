@@ -6,49 +6,64 @@ MEMORY_CHECKS = -fsanitize=address,undefined -fno-omit-frame-pointer
 INCLUDES = -Iinclude -Ivendor/mpc -Ivendor/arenas
 
 SRC := $(shell find src vendor -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" \))
-OBJ := $(patsubst %.cpp,build/%.cpp.o,$(filter %.cpp,$(SRC))) \
-       $(patsubst %.cc,build/%.cc.o,$(filter %.cc,$(SRC))) \
-       $(patsubst %.cxx,build/%.cxx.o,$(filter %.cxx,$(SRC)))
 
 LIBS = -ledit -lm
-LDFLAGS = $(MEMORY_CHECKS)
-
 BINARY = bin/run
 
+
+DEBUG_OBJ := $(patsubst %.cpp,build/debug/%.cpp.o,$(filter %.cpp,$(SRC))) \
+             $(patsubst %.cc,build/debug/%.cc.o,$(filter %.cc,$(SRC))) \
+             $(patsubst %.cxx,build/debug/%.cxx.o,$(filter %.cxx,$(SRC)))
+
+RELEASE_OBJ := $(patsubst %.cpp,build/release/%.cpp.o,$(filter %.cpp,$(SRC))) \
+               $(patsubst %.cc,build/release/%.cc.o,$(filter %.cc,$(SRC))) \
+               $(patsubst %.cxx,build/release/%.cxx.o,$(filter %.cxx,$(SRC)))
+
+
 debug: CXXFLAGS = -g -O0 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES) -MMD -MP
-debug: $(BINARY)
+debug: LDFLAGS = $(MEMORY_CHECKS)
+debug: $(DEBUG_OBJ) | bin
+	@$(CXX) $(DEBUG_OBJ) $(LIBS) $(LDFLAGS) -o $(BINARY)
+
 
 release: CXXFLAGS = -O2 -DNDEBUG $(STD) $(WARNINGS) $(INCLUDES) -MMD -MP
-release: $(BINARY)
+release: LDFLAGS =
+release: $(RELEASE_OBJ) | bin
+	@$(CXX) $(RELEASE_OBJ) $(LIBS) $(LDFLAGS) -o $(BINARY)
 
-$(BINARY): $(OBJ) | bin
-	@$(CXX) $(OBJ) $(LIBS) $(LDFLAGS) -o $@
 
-build/%.cpp.o: %.cpp
+build/debug/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
-build/%.cc.o: %.cc
+build/debug/%.cc.o: %.cc
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
-build/%.cxx.o: %.cxx
+build/debug/%.cxx.o: %.cxx
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
--include $(OBJ:.o=.d)
+
+build/release/%.cpp.o: %.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/release/%.cc.o: %.cc
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/release/%.cxx.o: %.cxx
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+
+-include $(DEBUG_OBJ:.o=.d)
+-include $(RELEASE_OBJ:.o=.d)
+
 
 bin:
 	@mkdir -p $@
-
-ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-
-run: debug
-	@printf "\n"
-	@./$(BINARY) $(ARGS)
-
-$(ARGS): run
-	@:
 
 clean:
 	@rm -rf build bin
