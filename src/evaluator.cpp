@@ -1,10 +1,11 @@
-#include "rush/executor.hpp"
+#include "rush/evaluator.hpp"
 #include "rush/shell.hpp"
 
 #include "rush/io.hpp"
 
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <stdexcept>
 #include <string>
@@ -100,7 +101,7 @@ bool Evaluator::dispatch_builtin(const Term &term) {
     const auto &name = term.name;
 
     if (name == "cd") {
-        // builtin_cd(term.args);
+        builtin_cd(term.args);
         return true;
     }
 
@@ -113,7 +114,7 @@ bool Evaluator::dispatch_builtin(const Term &term) {
 
 void Evaluator::builtin_exit(const std::vector<std::string> &args) {
     if (args.size() > 1) {
-        write_str("exit: too many args\n");
+        write_err("exit: too many args");
         return;
     }
     int status = 0;
@@ -122,12 +123,38 @@ void Evaluator::builtin_exit(const std::vector<std::string> &args) {
         try {
             status = std::stoi(args[0], &pos);
         } catch (std::invalid_argument const &ex) {
-            write_str(std::format("exit: {}: invalid argument\n", args[0]));
+            write_err(std::format("exit: {}: invalid argument", args[0]));
             return;
         } catch (std::out_of_range const &ex) {
-            write_str(std::format("exit: {}: out of range\n", args[0]));
+            write_err(std::format("exit: {}: out of range", args[0]));
             return;
         }
     }
     exit(status);
+}
+
+std::string home() {
+    char *home_dir = getenv("HOME");
+    if (home_dir == nullptr)
+        throw std::runtime_error("error: `HOME` env not set");
+    return std::string(home_dir);
+}
+
+void Evaluator::builtin_cd(const std::vector<std::string> &args) {
+    if (args.size() > 1) {
+        write_err("cd: too many args");
+        return;
+    }
+    std::string dir;
+    if (args.size() == 1) {
+        dir = args[0];
+    } else {
+        dir = home();
+    }
+    try {
+        std::filesystem::current_path(dir);
+        pwd = std::filesystem::current_path();
+    } catch (const std::filesystem::filesystem_error &e) {
+        write_err(std::format("cd: {}", e.what()));
+    }
 }

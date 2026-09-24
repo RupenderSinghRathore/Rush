@@ -11,8 +11,11 @@
 
 void Shell::repl() {
     term.enter_raw_mode();
-    write_str(PROMPT);
     while (1) {
+        if (needs_redraw) {
+            term.draw(editor.text(), editor.cursor());
+            needs_redraw = false;
+        }
         auto key = term.read_key();
         eval_key(key);
     }
@@ -21,7 +24,7 @@ void Shell::repl() {
 
 void Shell::handle_backspace() {
     editor.delete_char();
-    term.draw(editor.text(), editor.cursor());
+    needs_redraw = true;
 }
 
 void Shell::handle_enter() {
@@ -60,7 +63,7 @@ redraw:
     tokenizer.clear();
     term.reset_row();
     reap_bg_processes();
-    term.draw();
+    needs_redraw = true;
 }
 
 void Shell::eval_key(Key key) {
@@ -77,7 +80,7 @@ void Shell::eval_key(Key key) {
             break;
         case 'C':
             editor.clear();
-            term.draw();
+            needs_redraw = true;
             term.reset_row();
             break;
         case 'M':

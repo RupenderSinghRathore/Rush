@@ -2,13 +2,16 @@
 
 #include "rush/bg_processes.hpp"
 #include "rush/editor.hpp"
-#include "rush/executor.hpp"
+#include "rush/evaluator.hpp"
 #include "rush/parser.hpp"
 #include "rush/terminal.hpp"
 #include "rush/tokenizer.hpp"
+#include <filesystem>
 
 class Shell {
   private:
+    std::string pwd;
+    bool needs_redraw = true;
     Terminal term;
     Tokenizer tokenizer;
     Parser parser;
@@ -17,7 +20,9 @@ class Shell {
     Evaluator eval;
 
   public:
-    Shell() : eval(bg_processes) {}
+    Shell() : term(pwd), eval(bg_processes, pwd) {
+        pwd = std::filesystem::current_path();
+    }
 
     void repl();
     void eval_key(Key key);

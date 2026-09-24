@@ -2,6 +2,7 @@
 
 #include "rush/io.hpp"
 
+#include <format>
 #include <string>
 #include <termios.h>
 #include <unistd.h>
@@ -16,7 +17,7 @@ constexpr char DEL = 0x7F;
 
 } // namespace
 
-Terminal::Terminal() {
+Terminal::Terminal(const std::string &s) : pwd(s) {
     tcgetattr(STDIN_FILENO, &original);
     raw = original;
     raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
@@ -25,6 +26,8 @@ Terminal::Terminal() {
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
 }
+
+std::string Terminal::prompt() { return std::format("{}$ ", pwd); }
 
 void Terminal::enter_raw_mode() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); }
 void Terminal::exit_raw_mode() {
@@ -88,7 +91,7 @@ void Terminal::draw(std::string text, size_t cursor) {
     // clear till end of screen
     write_str("\r\x1b[J");
 
-    write_str(PROMPT);
+    write_str(prompt());
     write_str(text);
 
     size_t back = text.size() - cursor;

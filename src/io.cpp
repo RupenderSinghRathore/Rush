@@ -9,4 +9,5 @@ void write_str(const std::string &s) {
 
 void write_err(const std::string &s) {
     write(STDERR_FILENO, s.data(), s.size());
+    write(STDERR_FILENO, "\n", 1);
 }

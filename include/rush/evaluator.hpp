@@ -6,9 +6,10 @@
 class Evaluator {
   private:
     BGProcesses &bg_processes;
+    std::string &pwd;
 
   public:
-    Evaluator(BGProcesses &b) : bg_processes(b) {}
+    Evaluator(BGProcesses &b, std::string &s) : bg_processes(b), pwd(s) {}
 
     void execute_command(std::vector<char *> cmd, bool background_process);
     void eval_expr(Expr &expr);
