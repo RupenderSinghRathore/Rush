@@ -13,10 +13,15 @@ void Tokenizer::tokenize(std::string line) {
 }
 
 // || & && ; ;; ;& ;;& ( ) | |& <newline>
-constexpr std::string_view BACKGROUND_POSTFIX_OP = "&";
+constexpr std::string_view POSTFIXOP_BG = "&";
+constexpr std::string_view INFIXOP_AND = "&&";
+constexpr std::string_view INFIXOP_OR = "||";
 
 TokenType Tokenizer::check_operator() {
-    if (token.text == BACKGROUND_POSTFIX_OP) return TokenType::Postfix_Operator;
+    if (token.text == POSTFIXOP_BG) return TokenType::Postfix_Operator;
+
+    if (token.text == INFIXOP_AND) return TokenType::Infix_Operator;
+    if (token.text == INFIXOP_OR) return TokenType::Infix_Operator;
     return TokenType::Unknown;
 }
 
