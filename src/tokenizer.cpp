@@ -1,7 +1,6 @@
 #include "rush/tokenizer.hpp"
 
 #include <cctype>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -12,16 +11,13 @@ void Tokenizer::tokenize(std::string line) {
     }
 }
 
-// || & && ; ;; ;& ;;& ( ) | |& <newline>
-constexpr std::string_view POSTFIXOP_BG = "&";
-constexpr std::string_view INFIXOP_AND = "&&";
-constexpr std::string_view INFIXOP_OR = "||";
-
 TokenType Tokenizer::check_operator() {
-    if (token.text == POSTFIXOP_BG) return TokenType::Postfix_Operator;
-
-    if (token.text == INFIXOP_AND) return TokenType::Infix_Operator;
-    if (token.text == INFIXOP_OR) return TokenType::Infix_Operator;
+    for (const auto [text, type] : operators) {
+        if (token.text == text) {
+            token.type = type;
+            return type;
+        }
+    }
     return TokenType::Unknown;
 }
 
@@ -35,20 +31,13 @@ void Tokenizer::consume_char(char c) {
     }
     if (std::isspace(static_cast<unsigned char>(c))) {
         if (started) {
-            if (token.type == TokenType::Unknown) {
-                token.type = check_operator();
-                if (token.type == TokenType::Unknown)
-                    token.type = TokenType::Constant;
-            }
+            if (check_operator() == TokenType::Unknown)
+                token.type = TokenType::Word;
 
             tokens.push_back(std::move(token));
             token.text.clear();
             started = false;
-
-            if (token.type == TokenType::Infix_Operator)
-                token.type = TokenType::Identifier;
-            else
-                token.type = TokenType::Unknown;
+            token.type = TokenType::Unknown;
         }
         return;
     }
@@ -56,22 +45,6 @@ void Tokenizer::consume_char(char c) {
         quote = c;
         started = true;
         return;
-    }
-
-    if (token.type == TokenType::Identifier) {
-        if (token.text.empty()) {
-            if (is_identifier_start(c)) {
-                token.text.push_back(c);
-                started = true;
-                return;
-            }
-        } else if (is_identifier(c)) {
-            token.text.push_back(c);
-            return;
-        }
-        throw std::runtime_error(
-            "unexpected trailing character: " + std::string(1, c)
-        );
     }
 
     token.text.push_back(c);

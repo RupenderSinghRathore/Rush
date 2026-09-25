@@ -1,15 +1,29 @@
 #pragma once
 
+#include <array>
 #include <string>
+#include <utility>
 #include <vector>
 
 enum class TokenType {
-    Identifier = 0,
-    Constant,
-    Infix_Operator,
-    Postfix_Operator,
     Unknown,
+    Word,
+    LineEnd,
+    Background,
+    And,
+    Or,
+    Pipe,
+    PipeStderr,
 };
+
+constexpr std::array<std::pair<std::string_view, TokenType>, 6> operators{{
+    {";", TokenType::LineEnd},
+    {"&", TokenType::Background},
+    {"&&", TokenType::And},
+    {"||", TokenType::Or},
+    {"|", TokenType::Pipe},
+    {"|&", TokenType::PipeStderr},
+}};
 
 struct Token {
     TokenType type;
