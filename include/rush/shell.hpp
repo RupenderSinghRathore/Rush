@@ -11,6 +11,7 @@
 class Shell {
   private:
     std::string pwd;
+    bool exit;
     bool needs_redraw = true;
     Terminal term;
     Tokenizer tokenizer;
@@ -20,7 +21,7 @@ class Shell {
     Evaluator eval;
 
   public:
-    Shell() : term(pwd), eval(bg_processes, pwd) {
+    Shell() : term(pwd), eval(bg_processes, pwd, exit) {
         pwd = std::filesystem::current_path();
     }
 

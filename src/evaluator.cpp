@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-void Evaluator::execute_command(
+int Evaluator::execute_command(
     std::vector<char *> cmd, bool background_process
 ) {
     auto pid = fork();
@@ -24,8 +24,8 @@ void Evaluator::execute_command(
         write_err(std::move(msg));
         _exit(127);
     } else if (pid < 0) {
-        perror("error in fork");
-        exit(1);
+        write_err("error in fork");
+        return STATUS_FAILURE;
     }
     int status = 0;
     if (background_process) {
@@ -39,6 +39,7 @@ void Evaluator::execute_command(
             );
         }
     }
+    return WEXITSTATUS(status);
 }
 
 void Shell::reap_bg_processes() {
@@ -73,16 +74,35 @@ void Shell::reap_bg_processes() {
     }
 }
 
-void Evaluator::eval_expr(Expr &expr) {
-    eval_term(expr.left);
+void Evaluator::run(Expr &expr) { last_status = eval_expr(expr); }
 
-    // TODO: Process rest of expr
+int Evaluator::eval_expr(Expr &expr) {
+    int status = eval_term(expr.left);
+
+    for (auto op : expr.rest) {
+        if (op.first == "&&")
+            status = infixop_and(op.second, status);
+
+        else if (op.first == "||")
+            status = infixop_or(op.second, status);
+    }
+
+    return status;
 }
 
-void Evaluator::eval_term(Term &term) {
-    if (dispatch_builtin(term)) {
-        return;
-    }
+int Evaluator::infixop_and(Term &term, int status) {
+    if (status != STATUS_SUCCESS) return status;
+    return eval_term(term);
+}
+int Evaluator::infixop_or(Term &term, int status) {
+    if (status == STATUS_SUCCESS) return status;
+    return eval_term(term);
+}
+
+int Evaluator::eval_term(Term &term) {
+    int status = dispatch_builtin(term);
+    if (status != STATUS_NOT_A_BUILTIN) return status;
+
     std::vector<char *> cmd;
     cmd.push_back(term.name.data());
     for (auto arg : term.args) {
@@ -90,32 +110,29 @@ void Evaluator::eval_term(Term &term) {
     }
     bool background_process = false;
     if (!term.postfix_op.empty()) {
-        // write_str("using " + term.postfix_op + " operator");
         background_process = true;
     }
 
-    execute_command(cmd, background_process);
+    return execute_command(cmd, background_process);
 }
 
-bool Evaluator::dispatch_builtin(const Term &term) {
+int Evaluator::dispatch_builtin(const Term &term) {
     const auto &name = term.name;
 
     if (name == "cd") {
-        builtin_cd(term.args);
-        return true;
+        return builtin_cd(term.args);
     }
 
     if (name == "exit") {
-        builtin_exit(term.args);
-        return true;
+        return builtin_exit(term.args);
     }
-    return false;
+    return STATUS_NOT_A_BUILTIN;
 }
 
-void Evaluator::builtin_exit(const std::vector<std::string> &args) {
+int Evaluator::builtin_exit(const std::vector<std::string> &args) {
     if (args.size() > 1) {
         write_err("exit: too many args");
-        return;
+        return STATUS_FAILURE;
     }
     int status = 0;
     if (args.size() == 1) {
@@ -124,13 +141,14 @@ void Evaluator::builtin_exit(const std::vector<std::string> &args) {
             status = std::stoi(args[0], &pos);
         } catch (std::invalid_argument const &ex) {
             write_err(std::format("exit: {}: invalid argument", args[0]));
-            return;
+            return STATUS_FAILURE;
         } catch (std::out_of_range const &ex) {
             write_err(std::format("exit: {}: out of range", args[0]));
-            return;
+            return STATUS_FAILURE;
         }
     }
-    exit(status);
+    exit = true;
+    return status;
 }
 
 std::string home() {
@@ -140,10 +158,10 @@ std::string home() {
     return std::string(home_dir);
 }
 
-void Evaluator::builtin_cd(const std::vector<std::string> &args) {
+int Evaluator::builtin_cd(const std::vector<std::string> &args) {
     if (args.size() > 1) {
         write_err("cd: too many args");
-        return;
+        return STATUS_FAILURE;
     }
     std::string dir;
     if (args.size() == 1) {
@@ -156,5 +174,7 @@ void Evaluator::builtin_cd(const std::vector<std::string> &args) {
         pwd = std::filesystem::current_path();
     } catch (const std::filesystem::filesystem_error &e) {
         write_err(std::format("cd: {}", e.what()));
+        return STATUS_FAILURE;
     }
+    return STATUS_SUCCESS;
 }

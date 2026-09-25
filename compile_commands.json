@@ -1,29 +1,5 @@
 [
   {
-    "file": "src/terminal.cpp",
-    "arguments": [
-      "/usr/bin/g++",
-      "-g",
-      "-O0",
-      "-std=c++23",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-Iinclude",
-      "-Ivendor/mpc",
-      "-Ivendor/arenas",
-      "src/terminal.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-o",
-      "bin/run"
-    ],
-    "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
-  },
-  {
     "file": "src/shell.cpp",
     "arguments": [
       "/usr/bin/g++",
@@ -38,14 +14,15 @@
       "-Iinclude",
       "-Ivendor/mpc",
       "-Ivendor/arenas",
+      "-MMD",
+      "-MP",
+      "-c",
       "src/shell.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
       "-o",
-      "bin/run"
+      "build/debug/src/shell.cpp.o"
     ],
     "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
+    "output": "build/debug/src/shell.cpp.o"
   },
   {
     "file": "src/main.cpp",
@@ -62,86 +39,15 @@
       "-Iinclude",
       "-Ivendor/mpc",
       "-Ivendor/arenas",
+      "-MMD",
+      "-MP",
+      "-c",
       "src/main.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
       "-o",
-      "bin/run"
+      "build/debug/src/main.cpp.o"
     ],
     "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
-  },
-  {
-    "file": "src/io.cpp",
-    "arguments": [
-      "/usr/bin/g++",
-      "-g",
-      "-O0",
-      "-std=c++23",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-Iinclude",
-      "-Ivendor/mpc",
-      "-Ivendor/arenas",
-      "src/io.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-o",
-      "bin/run"
-    ],
-    "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
-  },
-  {
-    "file": "src/editor.cpp",
-    "arguments": [
-      "/usr/bin/g++",
-      "-g",
-      "-O0",
-      "-std=c++23",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-Iinclude",
-      "-Ivendor/mpc",
-      "-Ivendor/arenas",
-      "src/editor.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-o",
-      "bin/run"
-    ],
-    "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
-  },
-  {
-    "file": "src/tokenizer.cpp",
-    "arguments": [
-      "/usr/bin/g++",
-      "-g",
-      "-O0",
-      "-std=c++23",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-Iinclude",
-      "-Ivendor/mpc",
-      "-Ivendor/arenas",
-      "src/tokenizer.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
-      "-o",
-      "bin/run"
-    ],
-    "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
+    "output": "build/debug/src/main.cpp.o"
   },
   {
     "file": "src/parser.cpp",
@@ -158,13 +64,39 @@
       "-Iinclude",
       "-Ivendor/mpc",
       "-Ivendor/arenas",
+      "-MMD",
+      "-MP",
+      "-c",
       "src/parser.cpp",
-      "-fsanitize=address,undefined",
-      "-fno-omit-frame-pointer",
       "-o",
-      "bin/run"
+      "build/debug/src/parser.cpp.o"
     ],
     "directory": "/home/kami-sama/lunaar/projects/rush",
-    "output": "bin/run"
+    "output": "build/debug/src/parser.cpp.o"
+  },
+  {
+    "file": "src/evaluator.cpp",
+    "arguments": [
+      "/usr/bin/g++",
+      "-g",
+      "-O0",
+      "-std=c++23",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Iinclude",
+      "-Ivendor/mpc",
+      "-Ivendor/arenas",
+      "-MMD",
+      "-MP",
+      "-c",
+      "src/evaluator.cpp",
+      "-o",
+      "build/debug/src/evaluator.cpp.o"
+    ],
+    "directory": "/home/kami-sama/lunaar/projects/rush",
+    "output": "build/debug/src/evaluator.cpp.o"
   }
 ]

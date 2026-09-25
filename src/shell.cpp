@@ -3,7 +3,6 @@
 #include "rush/io.hpp"
 #include "rush/terminal.hpp"
 
-#include <cstdlib>
 #include <exception>
 #include <string>
 #include <sys/wait.h>
@@ -11,7 +10,7 @@
 
 void Shell::repl() {
     term.enter_raw_mode();
-    while (1) {
+    while (!exit) {
         if (needs_redraw) {
             term.draw(editor.text(), editor.cursor());
             needs_redraw = false;
@@ -51,7 +50,7 @@ void Shell::handle_enter() {
             parser.reset(tokenizer.owned_tokens());
             auto expr = parser.parse_start();
             term.exit_raw_mode();
-            eval.eval_expr(expr);
+            eval.run(expr);
         } catch (std::exception &e) {
             write_err(e.what());
         }
@@ -88,7 +87,7 @@ void Shell::eval_key(Key key) {
             break;
         case 'Q':
             term.exit_raw_mode();
-            exit(0);
+            exit = true;
         }
         break;
 
