@@ -8,9 +8,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-void Shell::repl() {
+int Shell::repl() {
     term.enter_raw_mode();
-    while (!exit) {
+    while (!exit_s) {
         if (needs_redraw) {
             term.draw(editor.text(), editor.cursor());
             needs_redraw = false;
@@ -19,6 +19,7 @@ void Shell::repl() {
         eval_key(key);
     }
     term.exit_raw_mode();
+    return exit_code;
 }
 
 void Shell::handle_backspace() {
@@ -48,9 +49,9 @@ void Shell::handle_enter() {
     if (!tokenizer.is_empty()) {
         try {
             parser.reset(tokenizer.owned_tokens());
-            auto expr = parser.parse_start();
+            auto list = parser.parse_start();
             term.exit_raw_mode();
-            eval.run(expr);
+            eval.run(list);
         } catch (std::exception &e) {
             write_err(e.what());
         }
@@ -87,7 +88,7 @@ void Shell::eval_key(Key key) {
             break;
         case 'Q':
             term.exit_raw_mode();
-            exit = true;
+            exit_s = true;
         }
         break;
 

@@ -12,7 +12,7 @@ void Tokenizer::tokenize(std::string line) {
 }
 
 TokenType Tokenizer::check_operator() {
-    for (const auto [text, type] : operators) {
+    for (const auto &[text, type] : operators) {
         if (token.text == text) {
             token.type = type;
             return type;

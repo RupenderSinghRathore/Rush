@@ -2,37 +2,50 @@
 
 #include "rush/bg_processes.hpp"
 #include "rush/parser.hpp"
+#include <memory>
+#include <optional>
+#include <span>
 
-constexpr int STATUS_NOT_A_BUILTIN = -1; // command ran fine
-constexpr int STATUS_SUCCESS = 0;        // command ran fine
-constexpr int STATUS_FAILURE = 1; // general error (builtins, most failures)
-constexpr int STATUS_USAGE = 2;   // misuse of shell builtin / bad invocation
-constexpr int STATUS_NOT_EXECUTABLE =
-    126; // found, but couldn't exec (permissions, not a binary)
-constexpr int STATUS_NOT_FOUND = 127; // command not found / couldn't resolve
+enum class Status {
+    Success = 0, // command ran fine
+    Failure = 1, // general error (builtins, most failures)
+    Usage = 2,   // misuse of shell builtin / bad invocation
+    NotExecutable = 126,
+    NotFound = 127,
+};
 
 class Evaluator {
   private:
     BGProcesses &bg_processes;
     std::string &pwd;
-    int last_status;
+    Status last_status;
     bool &exit;
+    int &exit_code;
 
   public:
-    Evaluator(BGProcesses &b, std::string &s, bool &e)
-        : bg_processes(b), pwd(s), exit(e) {}
+    Evaluator(BGProcesses &b, std::string &s, bool &e, int &code)
+        : bg_processes(b), pwd(s), exit(e), exit_code(code) {}
 
-    int execute_command(std::vector<char *> cmd, bool background_process);
-    void run(Expr &expr);
-    int eval_expr(Expr &expr);
-    int eval_term(Term &term);
+    Status execute_command(std::vector<std::string> cmd, bool background_process);
+    void run(std::unique_ptr<List> &list);
+    Status eval_list(std::unique_ptr<List> &list);
+    std::optional<Status> eval_list_tail(std::unique_ptr<ListTail> &list_tail);
+    Status eval_and_or(std::unique_ptr<AndOr> &and_or);
+    Status eval_and_or_tail(
+        Status prev, std::unique_ptr<AndOrTail> &and_or_tail
+    );
+    Status eval_pipeline(std::unique_ptr<Pipeline> &pipeline);
+    Status eval_pipeline_tail(std::unique_ptr<PipelineTail> &pipeline_tail);
+    Status eval_background(std::unique_ptr<Background> &background);
+    std::optional<Status> eval_background_tail(
+        std::unique_ptr<BackgroundTail> &background_tail
+    );
 
-    int dispatch_builtin(const Term &term);
-    int builtin_cd(const std::vector<std::string> &args);
-    int builtin_exit(const std::vector<std::string> &args);
-    int builtin_echo(const std::vector<std::string> &args);
-    // void builtin_cd(std::vector<std::string> args);
+    std::optional<Status> dispatch_builtin(const std::vector<std::string> &cmd);
+    Status builtin_cd(const std::span<const std::string> &args);
+    Status builtin_exit(const std::span<const std::string> &args);
+    Status builtin_echo(const std::span<const std::string> &args);
 
-    int infixop_and(Term &term, int status);
-    int infixop_or(Term &term, int status);
+    // int op_and(Term &term, int status);
+    // int op_or(Term &term, int status);
 };

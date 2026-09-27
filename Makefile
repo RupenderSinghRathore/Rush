@@ -20,7 +20,8 @@ RELEASE_OBJ := $(patsubst %.cpp,build/release/%.cpp.o,$(filter %.cpp,$(SRC))) \
                $(patsubst %.cxx,build/release/%.cxx.o,$(filter %.cxx,$(SRC)))
 
 
-debug: CXXFLAGS = -g -O0 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES) -MMD -MP
+# debug: CXXFLAGS = -g -O0 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES) -MMD -MP
+debug: CXXFLAGS = -g -O0 -gdwarf-4 $(STD) $(WARNINGS) $(MEMORY_CHECKS) $(INCLUDES) -MMD -MP
 debug: LDFLAGS = $(MEMORY_CHECKS)
 debug: $(DEBUG_OBJ) | bin
 	@$(CXX) $(DEBUG_OBJ) $(LIBS) $(LDFLAGS) -o $(BINARY)

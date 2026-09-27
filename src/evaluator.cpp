@@ -7,16 +7,30 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utility>
+#include <variant>
 #include <vector>
 
-int Evaluator::execute_command(
-    std::vector<char *> cmd, bool background_process
+Status Evaluator::execute_command(
+    std::vector<std::string> command, bool background_process
 ) {
+
+    if (command.empty()) return Status::Success;
+
+    if (auto status = dispatch_builtin(command)) {
+        return status.value();
+    }
+
+    std::vector<char *> cmd;
+    for (auto &s : command) {
+        cmd.push_back(s.data());
+    }
     auto pid = fork();
     if (pid == 0) {
         execvp(cmd[0], cmd.data());
@@ -25,7 +39,7 @@ int Evaluator::execute_command(
         _exit(127);
     } else if (pid < 0) {
         write_err("error in fork");
-        return STATUS_FAILURE;
+        return Status::Failure;
     }
     int status = 0;
     if (background_process) {
@@ -39,7 +53,7 @@ int Evaluator::execute_command(
             );
         }
     }
-    return WEXITSTATUS(status);
+    return static_cast<Status> WEXITSTATUS(status);
 }
 
 void Shell::reap_bg_processes() {
@@ -74,81 +88,128 @@ void Shell::reap_bg_processes() {
     }
 }
 
-void Evaluator::run(Expr &expr) { last_status = eval_expr(expr); }
+void Evaluator::run(std::unique_ptr<List> &list) {
+    last_status = eval_list(list);
 
-int Evaluator::eval_expr(Expr &expr) {
-    int status = eval_term(expr.left);
+    // set status
+}
 
-    for (auto op : expr.rest) {
-        if (op.first == "&&")
-            status = infixop_and(op.second, status);
+Status Evaluator::eval_list(std::unique_ptr<List> &list) {
+    auto status = eval_and_or(list->and_or);
 
-        else if (op.first == "||")
-            status = infixop_or(op.second, status);
+    if (list->tail) {
+        status = eval_list_tail(list->tail).value_or(status);
     }
 
     return status;
 }
 
-int Evaluator::infixop_and(Term &term, int status) {
-    if (status != STATUS_SUCCESS) return status;
-    return eval_term(term);
-}
-int Evaluator::infixop_or(Term &term, int status) {
-    if (status == STATUS_SUCCESS) return status;
-    return eval_term(term);
-}
-
-int Evaluator::eval_term(Term &term) {
-    int status = dispatch_builtin(term);
-    if (status != STATUS_NOT_A_BUILTIN) return status;
-
-    std::vector<char *> cmd;
-    cmd.push_back(term.name.data());
-    for (auto arg : term.args) {
-        cmd.push_back(arg.data());
+std::optional<Status> Evaluator::eval_list_tail(
+    std::unique_ptr<ListTail> &list_tail
+) {
+    if (!list_tail->inner) {
+        return std::nullopt;
     }
-    bool background_process = false;
-    if (!term.postfix_op.empty()) {
-        background_process = true;
+    return std::visit(
+        [this](auto &ptr) -> std::optional<Status> {
+            using T = std::remove_cvref_t<decltype(ptr)>;
+
+            if constexpr (std::is_same_v<T, std::unique_ptr<List>>) {
+                return eval_list(ptr);
+            } else if constexpr (std::is_same_v<T, std::unique_ptr<ListTail>>) {
+                return eval_list_tail(ptr);
+            }
+        },
+        *list_tail->inner
+    );
+}
+Status Evaluator::eval_and_or(std::unique_ptr<AndOr> &and_or) {
+    auto status = eval_pipeline(and_or->pipeline);
+
+    if (and_or->and_or_tail) {
+        status = eval_and_or_tail(status, and_or->and_or_tail);
     }
 
-    return execute_command(cmd, background_process);
+    return status;
+}
+Status Evaluator::eval_and_or_tail(
+    Status prev, std::unique_ptr<AndOrTail> &and_or_tail
+) {
+    auto status = prev;
+    if (and_or_tail->op == "&&" && prev == Status::Success) {
+        status = eval_pipeline(and_or_tail->pipeline);
+    } else if (and_or_tail->op == "||" && prev == Status::Failure) {
+        status = eval_pipeline(and_or_tail->pipeline);
+    }
+    if (and_or_tail->and_or_tail) {
+        return eval_and_or_tail(status, and_or_tail->and_or_tail);
+    }
+    return status;
 }
 
-int Evaluator::dispatch_builtin(const Term &term) {
-    const auto &name = term.name;
+Status Evaluator::eval_pipeline(std::unique_ptr<Pipeline> &pipeline) {
+    auto status = eval_background(pipeline->bg);
+
+    if (pipeline->pipeline_tail) {
+        // skip for now
+        // status = eval_pipeline_tail(pipeline->pipeline_tail);
+    }
+    return status;
+}
+
+Status Evaluator::eval_background(std::unique_ptr<Background> &background) {
+    auto status =
+        execute_command(background->cmd, (background->bg_tail != nullptr));
+    if (background->bg_tail) {
+        status = eval_background_tail(background->bg_tail).value_or(status);
+    }
+    return status;
+}
+std::optional<Status> Evaluator::eval_background_tail(
+    std::unique_ptr<BackgroundTail> &background_tail
+) {
+    if (background_tail->list) return eval_list(background_tail->list);
+    return std::nullopt;
+}
+
+std::optional<Status> Evaluator::dispatch_builtin(
+    const std::vector<std::string> &cmd
+) {
+    auto name = cmd[0];
+    std::span<const std::string> args(cmd.data() + 1, cmd.size() - 1);
 
     if (name == "cd") {
-        return builtin_cd(term.args);
+        return builtin_cd(std::move(args));
     }
 
     if (name == "exit") {
-        return builtin_exit(term.args);
+        return builtin_exit(std::move(args));
     }
-    return STATUS_NOT_A_BUILTIN;
+    return std::nullopt;
 }
 
-int Evaluator::builtin_exit(const std::vector<std::string> &args) {
+Status Evaluator::builtin_exit(const std::span<const std::string> &args) {
     if (args.size() > 1) {
         write_err("exit: too many args");
-        return STATUS_FAILURE;
+        return Status::Failure;
     }
-    int status = 0;
+    int code = 0;
     if (args.size() == 1) {
         std::size_t pos{};
         try {
-            status = std::stoi(args[0], &pos);
+            code = std::stoi(args[0], &pos);
         } catch (std::invalid_argument const &ex) {
             write_err(std::format("exit: {}: invalid argument", args[0]));
-            return STATUS_FAILURE;
+            return Status::Failure;
         } catch (std::out_of_range const &ex) {
             write_err(std::format("exit: {}: out of range", args[0]));
-            return STATUS_FAILURE;
+            return Status::Failure;
         }
     }
     exit = true;
-    return status;
+    exit_code = code;
+
+    return Status::Success;
 }
 
 std::string home() {
@@ -158,10 +219,10 @@ std::string home() {
     return std::string(home_dir);
 }
 
-int Evaluator::builtin_cd(const std::vector<std::string> &args) {
+Status Evaluator::builtin_cd(const std::span<const std::string> &args) {
     if (args.size() > 1) {
         write_err("cd: too many args");
-        return STATUS_FAILURE;
+        return Status::Failure;
     }
     std::string dir;
     if (args.size() == 1) {
@@ -174,7 +235,7 @@ int Evaluator::builtin_cd(const std::vector<std::string> &args) {
         pwd = std::filesystem::current_path();
     } catch (const std::filesystem::filesystem_error &e) {
         write_err(std::format("cd: {}", e.what()));
-        return STATUS_FAILURE;
+        return Status::Failure;
     }
-    return STATUS_SUCCESS;
+    return Status::Success;
 }

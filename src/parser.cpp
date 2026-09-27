@@ -42,7 +42,7 @@ std::string Parser::expect_word() {
 
 std::string Parser::expect_operator() {
     auto &t = advance();
-    for (const auto [_, op] : operators) {
+    for (const auto &[_, op] : operators) {
         if (t.type == op) return t.text;
     }
     throw std::runtime_error("expected Operator, got: " + t.text);

@@ -2,6 +2,5 @@
 
 int main() {
     auto shell = Shell();
-    shell.repl();
-    return 0;
+    return shell.repl();
 }
