@@ -5,30 +5,40 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 /* GRAMMAR
 
 Terminals (TokenTypes)
 
-Start → List EOF
+Start -> List EOF
 
-List → AndOr ListTail?
+List -> AndOr ListTail?
 
-ListTail → ';' List?
-         | '&' List?
+ListTail -> ';' ListTailInner?
 
-AndOr → Pipeline AndOrTail?
+ListTailInner -> List | ListTail
 
-AndOrTail → '&&' Pipeline AndOrTail?
+AndOr -> Pipeline AndOrTail?
+
+AndOrTail -> '&&' Pipeline AndOrTail?
           | '||' Pipeline AndOrTail?
 
-Pipeline → Command PipelineTail?
+Pipeline -> Background PipelineTail?
 
-PipelineTail → '|' Command PipelineTail?
-             | '|&' Command PipelineTail?
+PipelineTail -> '|' Background PipelineTail?
+             | '|&' Background PipelineTail?
+             | '>' Background PipelineTail?
+             | '>>' Background PipelineTail?
+             | '<' Background PipelineTail?
+             | '<<' Background PipelineTail?
 
-Command → Word+
+Background -> Command BackgroundTail?
+
+BackgroundTail -> '&' list?
+
+Command -> Word+
 
 */
 
@@ -38,6 +48,11 @@ struct AndOr;
 struct AndOrTail;
 struct Pipeline;
 struct PipelineTail;
+struct Background;
+struct BackgroundTail;
+
+using ListTailInner =
+    std::variant<std::unique_ptr<List>, std::unique_ptr<ListTail>>;
 
 struct List {
     std::unique_ptr<AndOr> and_or;
@@ -45,8 +60,8 @@ struct List {
 };
 
 struct ListTail {
-    std::string op;
-    std::unique_ptr<List> list; // optional
+    std::string op;                       // ;
+    std::unique_ptr<ListTailInner> inner; // optional
 };
 
 struct AndOr {
@@ -55,20 +70,30 @@ struct AndOr {
 };
 
 struct AndOrTail {
-    std::string op;
+    std::string op; // && ||
     std::unique_ptr<Pipeline> pipeline;
     std::unique_ptr<AndOrTail> and_or_tail; // optional
 };
 
 struct Pipeline {
-    std::vector<std::string> cmd;
+    std::unique_ptr<Background> bg;
     std::unique_ptr<PipelineTail> pipeline_tail; // optional
 };
 
 struct PipelineTail {
-    std::string op;
-    std::vector<std::string> cmd;
+    std::string op; // | |& > >> << <
+    std::unique_ptr<Background> bg;
     std::unique_ptr<PipelineTail> pipeline_tail; // optional
+};
+
+struct Background {
+    std::vector<std::string> cmd;
+    std::unique_ptr<BackgroundTail> bg_tail; // optional
+};
+
+struct BackgroundTail {
+    std::string op;             // &
+    std::unique_ptr<List> list; // optional
 };
 
 class Parser {
@@ -87,10 +112,13 @@ class Parser {
 
     std::unique_ptr<List> parse_list();
     std::unique_ptr<ListTail> parse_list_tail();
+    std::unique_ptr<ListTailInner> parse_list_tail_inner();
     std::unique_ptr<AndOr> parse_and_or();
     std::unique_ptr<AndOrTail> parse_and_or_tail();
     std::unique_ptr<Pipeline> parse_pipeline();
     std::unique_ptr<PipelineTail> parse_pipeline_tail();
+    std::unique_ptr<Background> parse_background();
+    std::unique_ptr<BackgroundTail> parse_background_tail();
 
     std::vector<std::string> parse_cmd();
 };
