@@ -1,4 +1,5 @@
 #include "rush/parser.hpp"
+#include "rush/tokenizer.hpp"
 
 #include <memory>
 #include <stdexcept>
@@ -51,8 +52,7 @@ std::unique_ptr<List> Parser::parse_list() {
     auto and_or = parse_and_or();
 
     auto next = peek();
-    if (next && (next->type == TokenType::LineEnd ||
-                 next->type == TokenType::Background)) {
+    if (next && next->type == TokenType::LineEnd) {
         return std::make_unique<List>(std::move(and_or), parse_list_tail());
     }
 
@@ -65,13 +65,19 @@ std::unique_ptr<List> Parser::parse_list() {
 
 std::unique_ptr<ListTail> Parser::parse_list_tail() {
     auto &t = advance();
-    if (t.type != TokenType::LineEnd && t.type != TokenType::Background) {
+    if (t.type != TokenType::LineEnd) {
         throw std::runtime_error("expected Operator, got: " + t.text);
     }
 
-    if (peek()) return std::make_unique<ListTail>(t.text, parse_list());
+    auto list_tail = std::make_unique<ListTail>(t.text);
+    auto next = peek();
+    if (next && next->text == ";") {
+        list_tail->inner = std::make_unique<ListTailInner>(parse_list_tail());
+    } else if (next) {
+        list_tail->inner = std::make_unique<ListTailInner>(parse_list());
+    }
 
-    return std::make_unique<ListTail>(t.text, nullptr);
+    return list_tail;
 }
 
 std::unique_ptr<AndOr> Parser::parse_and_or() {
@@ -104,34 +110,64 @@ std::unique_ptr<AndOrTail> Parser::parse_and_or_tail() {
     return std::make_unique<AndOrTail>(t.text, std::move(pipeline), nullptr);
 }
 std::unique_ptr<Pipeline> Parser::parse_pipeline() {
-    auto cmd = parse_cmd();
+    auto bg = parse_background();
 
     auto next = peek();
-    if (next && (next->type == TokenType::Pipe ||
-                 next->type == TokenType::PipeStderr)) {
-        return std::make_unique<Pipeline>(
-            std::move(cmd), parse_pipeline_tail()
-        );
+    if (next &&
+        (next->type == TokenType::Pipe || next->type == TokenType::PipeStderr ||
+         next->type == TokenType::OutputRedirect ||
+         next->type == TokenType::OutputAppendRedirect ||
+         next->type == TokenType::InputRedirect ||
+         next->type == TokenType::HereDocument)) {
+        return std::make_unique<Pipeline>(std::move(bg), parse_pipeline_tail());
     }
-    return std::make_unique<Pipeline>(std::move(cmd), nullptr);
+    return std::make_unique<Pipeline>(std::move(bg), nullptr);
 }
 std::unique_ptr<PipelineTail> Parser::parse_pipeline_tail() {
     auto &t = advance();
-    if (t.type != TokenType::Pipe && t.type != TokenType::PipeStderr) {
+    if (t.type != TokenType::Pipe && t.type != TokenType::PipeStderr &&
+        t.type != TokenType::OutputRedirect &&
+        t.type != TokenType::OutputAppendRedirect &&
+        t.type != TokenType::InputRedirect &&
+        t.type != TokenType::HereDocument) {
         throw std::runtime_error("expected Operator, got: " + t.text);
     }
 
-    auto cmd = parse_cmd();
+    auto bg = parse_background();
 
     auto next = peek();
-    if (next && (next->type == TokenType::Pipe ||
-                 next->type == TokenType::PipeStderr)) {
+    if (next &&
+        (next->type == TokenType::Pipe || next->type == TokenType::PipeStderr ||
+         next->type == TokenType::OutputRedirect ||
+         next->type == TokenType::OutputAppendRedirect ||
+         next->type == TokenType::InputRedirect ||
+         next->type == TokenType::HereDocument)) {
         return std::make_unique<PipelineTail>(
-            t.text, std::move(cmd), parse_pipeline_tail()
+            t.text, std::move(bg), parse_pipeline_tail()
         );
     }
 
-    return std::make_unique<PipelineTail>(t.text, std::move(cmd), nullptr);
+    return std::make_unique<PipelineTail>(t.text, std::move(bg), nullptr);
+}
+
+std::unique_ptr<Background> Parser::parse_background() {
+    auto cmd = parse_cmd();
+    if (peek() && peek()->text == "&") {
+        return std::make_unique<Background>(
+            std::move(cmd), parse_background_tail()
+        );
+    }
+    return std::make_unique<Background>(std::move(cmd));
+}
+std::unique_ptr<BackgroundTail> Parser::parse_background_tail() {
+    auto &t = advance();
+    if (t.type != TokenType::Background) {
+        throw std::runtime_error("expected Operator, got: " + t.text);
+    }
+    if (peek()) {
+        return std::make_unique<BackgroundTail>(t.text, parse_list());
+    }
+    return std::make_unique<BackgroundTail>(t.text);
 }
 
 std::vector<std::string> Parser::parse_cmd() {

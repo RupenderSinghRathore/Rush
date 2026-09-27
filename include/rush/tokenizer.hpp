@@ -14,6 +14,10 @@ enum class TokenType {
     Or,
     Pipe,
     PipeStderr,
+    OutputRedirect,
+    OutputAppendRedirect,
+    InputRedirect,
+    HereDocument,
 };
 
 constexpr std::array<std::pair<std::string_view, TokenType>, 6> operators{{
