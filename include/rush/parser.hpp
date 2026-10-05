@@ -102,7 +102,7 @@ class Parser {
     size_t pos;
 
     Parser() = default;
-    void reset(std::vector<Token> t);
+    void reset(std::vector<Token>);
     std::unique_ptr<List> parse_start();
     const Token *peek();
     Token &advance();

@@ -10,8 +10,8 @@ class Editor {
 
   public:
     Editor() = default;
-    void insert(char ch);
-    void insert(std::string s);
+    void insert(char);
+    void insert(std::string);
     std::string text();
     std::string owned_text();
     size_t cursor();

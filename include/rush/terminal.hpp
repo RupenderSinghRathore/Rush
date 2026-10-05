@@ -38,7 +38,7 @@ class Terminal {
     const std::string &pwd;
 
   public:
-    Terminal(const std::string &s);
+    Terminal(const std::string &);
     void enter_raw_mode();
     void exit_raw_mode();
     Key read_key();

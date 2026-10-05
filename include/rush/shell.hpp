@@ -27,7 +27,7 @@ class Shell {
     }
 
     int repl();
-    void eval_key(Key key);
+    void eval_key(Key);
     void handle_backspace();
     void handle_enter();
     void reap_bg_processes();

@@ -26,26 +26,21 @@ class Evaluator {
     Evaluator(BGProcesses &b, std::string &s, bool &e, int &code)
         : bg_processes(b), pwd(s), exit(e), exit_code(code) {}
 
-    Status execute_command(std::vector<std::string> cmd, bool background_process);
+    Status execute_command(std::vector<std::string>, bool);
     void run(std::unique_ptr<List> &list);
-    Status eval_list(std::unique_ptr<List> &list);
-    std::optional<Status> eval_list_tail(std::unique_ptr<ListTail> &list_tail);
-    Status eval_and_or(std::unique_ptr<AndOr> &and_or);
-    Status eval_and_or_tail(
-        Status prev, std::unique_ptr<AndOrTail> &and_or_tail
-    );
-    Status eval_pipeline(std::unique_ptr<Pipeline> &pipeline);
-    Status eval_pipeline_tail(std::unique_ptr<PipelineTail> &pipeline_tail);
-    Status eval_background(std::unique_ptr<Background> &background);
+    Status eval_list(std::unique_ptr<List> &);
+    std::optional<Status> eval_list_tail(std::unique_ptr<ListTail> &);
+    Status eval_and_or(std::unique_ptr<AndOr> &);
+    Status eval_and_or_tail(Status prev, std::unique_ptr<AndOrTail> &);
+    Status eval_pipeline(std::unique_ptr<Pipeline> &);
+    Status eval_pipeline_tail(std::unique_ptr<PipelineTail> &);
+    Status eval_background(std::unique_ptr<Background> &);
     std::optional<Status> eval_background_tail(
-        std::unique_ptr<BackgroundTail> &background_tail
+        std::unique_ptr<BackgroundTail> &
     );
 
-    std::optional<Status> dispatch_builtin(const std::vector<std::string> &cmd);
-    Status builtin_cd(const std::span<const std::string> &args);
-    Status builtin_exit(const std::span<const std::string> &args);
-    Status builtin_echo(const std::span<const std::string> &args);
-
-    // int op_and(Term &term, int status);
-    // int op_or(Term &term, int status);
+    std::optional<Status> dispatch_builtin(const std::vector<std::string> &);
+    Status builtin_cd(const std::span<const std::string> &);
+    Status builtin_exit(const std::span<const std::string> &);
+    Status builtin_echo(const std::span<const std::string> &);
 };

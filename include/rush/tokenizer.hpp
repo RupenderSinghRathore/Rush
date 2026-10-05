@@ -40,16 +40,16 @@ class Tokenizer {
     char quote = '\0';
     bool started = false;
 
-    bool is_identifier_start(char c);
-    bool is_identifier(char c);
+    bool is_identifier_start(char);
+    bool is_identifier(char);
     TokenType check_operator();
 
   public:
     std::vector<Token> tokens;
 
     Tokenizer() = default;
-    void tokenize(std::string line);
-    void consume_char(char c);
+    void tokenize(std::string);
+    void consume_char(char);
     void clear();
     bool is_quoted();
     bool is_empty();
