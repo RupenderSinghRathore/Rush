@@ -4,8 +4,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 /* GRAMMAR
@@ -14,86 +14,63 @@ Terminals (TokenTypes)
 
 Start -> List EOF
 
-List -> AndOr ListTail?
+List -> AndOr (ListMid)* ListSeparator?
+ListMid -> ListSeparator AndOr
+ListSeparator -> ';' | '&'
 
-ListTail -> ';' ListTailInner?
+AndOr -> Pipeline (AndOrMid)*
+AndOrMid -> AndOrOperator Pipeline
+AndOrOperator -> '&&' | '||'
 
-ListTailInner -> List | ListTail
-
-AndOr -> Pipeline AndOrTail?
-
-AndOrTail -> '&&' Pipeline AndOrTail?
-          | '||' Pipeline AndOrTail?
-
-Pipeline -> Background PipelineTail?
-
-PipelineTail -> '|' Background PipelineTail?
-             | '|&' Background PipelineTail?
-             | '>' Background PipelineTail?
-             | '>>' Background PipelineTail?
-             | '<' Background PipelineTail?
-             | '<<' Background PipelineTail?
-
-Background -> Command BackgroundTail?
-
-BackgroundTail -> '&' list?
+Pipeline -> Command (PipelineMid)*
+PipelineMid -> PipelineOperator Command
+PipelineOperator -> '|' | '|&'
 
 Command -> Word+
 
 */
 
 struct List;
-struct ListTail;
-struct AndOr;
-struct AndOrTail;
-struct Pipeline;
-struct PipelineTail;
-struct Background;
-struct BackgroundTail;
+struct ListMid;
+enum class ListSeparator { Semicolon, Ampersand };
 
-using ListTailInner =
-    std::variant<std::unique_ptr<List>, std::unique_ptr<ListTail>>;
+struct AndOr;
+struct AndOrMid;
+enum class AndOrOperator { And, Or };
+
+struct Pipeline;
+struct PipelineMid;
+enum class PipelineOperator { Pipe, ErrPipe };
 
 struct List {
     std::unique_ptr<AndOr> and_or;
-    std::unique_ptr<ListTail> tail; // optional
+    std::vector<ListMid> mid;
+    std::optional<ListSeparator> sep;
 };
 
-struct ListTail {
-    std::string op;                       // ;
-    std::unique_ptr<ListTailInner> inner; // optional
+struct ListMid {
+    ListSeparator sep;
+    std::unique_ptr<AndOr> and_or;
 };
 
 struct AndOr {
     std::unique_ptr<Pipeline> pipeline;
-    std::unique_ptr<AndOrTail> and_or_tail; // optional
+    std::vector<AndOrMid> mid;
 };
 
-struct AndOrTail {
-    std::string op; // && ||
+struct AndOrMid {
+    AndOrOperator op;
     std::unique_ptr<Pipeline> pipeline;
-    std::unique_ptr<AndOrTail> and_or_tail; // optional
 };
 
 struct Pipeline {
-    std::unique_ptr<Background> bg;
-    std::unique_ptr<PipelineTail> pipeline_tail; // optional
-};
-
-struct PipelineTail {
-    std::string op; // | |& > >> << <
-    std::unique_ptr<Background> bg;
-    std::unique_ptr<PipelineTail> pipeline_tail; // optional
-};
-
-struct Background {
     std::vector<std::string> cmd;
-    std::unique_ptr<BackgroundTail> bg_tail; // optional
+    std::vector<PipelineMid> mid;
 };
 
-struct BackgroundTail {
-    std::string op;             // &
-    std::unique_ptr<List> list; // optional
+struct PipelineMid {
+    PipelineOperator op;
+    std::vector<std::string> cmd;
 };
 
 class Parser {
@@ -105,20 +82,27 @@ class Parser {
     void reset(std::vector<Token>);
     std::unique_ptr<List> parse_start();
     const Token *peek();
+    const Token *peek_next();
     Token &advance();
+
+    bool is_list_separator(TokenType);
+    bool is_and_or_operator(TokenType);
+    bool is_pipeline_operator(TokenType);
 
     std::string expect_word();
     std::string expect_operator();
 
     std::unique_ptr<List> parse_list();
-    std::unique_ptr<ListTail> parse_list_tail();
-    std::unique_ptr<ListTailInner> parse_list_tail_inner();
+    ListMid parse_list_mid();
+    ListSeparator parse_list_separator();
+
     std::unique_ptr<AndOr> parse_and_or();
-    std::unique_ptr<AndOrTail> parse_and_or_tail();
+    AndOrMid parse_and_or_mid();
+    AndOrOperator parse_and_or_operator();
+
     std::unique_ptr<Pipeline> parse_pipeline();
-    std::unique_ptr<PipelineTail> parse_pipeline_tail();
-    std::unique_ptr<Background> parse_background();
-    std::unique_ptr<BackgroundTail> parse_background_tail();
+    PipelineMid parse_pipeline_mid();
+    PipelineOperator parse_pipeline_operator();
 
     std::vector<std::string> parse_cmd();
 };
