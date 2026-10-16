@@ -8,25 +8,22 @@
 enum class TokenType {
     Unknown,
     Word,
-    LineEnd,
-    Background,
+    Semicolon,
+    Ampersand,
     And,
     Or,
     Pipe,
-    PipeStderr,
-    OutputRedirect,
-    OutputAppendRedirect,
-    InputRedirect,
+    ErrPipe,
     HereDocument,
 };
 
 constexpr std::array<std::pair<std::string_view, TokenType>, 6> operators{{
-    {";", TokenType::LineEnd},
-    {"&", TokenType::Background},
+    {";", TokenType::Semicolon},
+    {"&", TokenType::Ampersand},
     {"&&", TokenType::And},
     {"||", TokenType::Or},
     {"|", TokenType::Pipe},
-    {"|&", TokenType::PipeStderr},
+    {"|&", TokenType::ErrPipe},
 }};
 
 struct Token {

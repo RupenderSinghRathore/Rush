@@ -85,9 +85,15 @@ class Parser {
     const Token *peek_next();
     Token &advance();
 
-    bool is_list_separator(TokenType);
-    bool is_and_or_operator(TokenType);
-    bool is_pipeline_operator(TokenType);
+    bool is_list_separator(TokenType t) {
+        return t == TokenType::Semicolon || t == TokenType::Ampersand;
+    }
+    bool is_and_or_operator(TokenType t) {
+        return t == TokenType::And || t == TokenType::Or;
+    }
+    bool is_pipeline_operator(TokenType t) {
+        return t == TokenType::Pipe || t == TokenType::ErrPipe;
+    }
 
     std::string expect_word();
     std::string expect_operator();
