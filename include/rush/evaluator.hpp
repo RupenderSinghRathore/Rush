@@ -26,18 +26,15 @@ class Evaluator {
     Evaluator(BGProcesses &b, std::string &s, bool &e, int &code)
         : bg_processes(b), pwd(s), exit(e), exit_code(code) {}
 
-    Status execute_command(std::vector<std::string>, bool);
+    Status execute_command(std::vector<std::string>);
+    Status execute_pipe(std::vector<char *> &, std::vector<char *> &, bool);
     void run(std::unique_ptr<List> &list);
     Status eval_list(std::unique_ptr<List> &);
-    std::optional<Status> eval_list_tail(std::unique_ptr<ListTail> &);
+    Status start_bg_process(std::unique_ptr<AndOr> &);
     Status eval_and_or(std::unique_ptr<AndOr> &);
-    Status eval_and_or_tail(Status prev, std::unique_ptr<AndOrTail> &);
+    Status eval_and_or_mid(Status prev, std::unique_ptr<AndOrMid> &);
     Status eval_pipeline(std::unique_ptr<Pipeline> &);
-    Status eval_pipeline_tail(std::unique_ptr<PipelineTail> &);
-    Status eval_background(std::unique_ptr<Background> &);
-    std::optional<Status> eval_background_tail(
-        std::unique_ptr<BackgroundTail> &
-    );
+    Status eval_pipeline_mid(std::unique_ptr<PipelineMid> &);
 
     std::optional<Status> dispatch_builtin(const std::vector<std::string> &);
     Status builtin_cd(const std::span<const std::string> &);

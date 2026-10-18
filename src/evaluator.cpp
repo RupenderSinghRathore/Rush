@@ -1,4 +1,5 @@
 #include "rush/evaluator.hpp"
+#include "rush/parser.hpp"
 #include "rush/shell.hpp"
 
 #include "rush/io.hpp"
@@ -14,46 +15,45 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utility>
-#include <variant>
 #include <vector>
+#include <wait.h>
 
-Status Evaluator::execute_command(
-    std::vector<std::string> command, bool background_process
-) {
-
+Status Evaluator::execute_command(std::vector<std::string> command) {
     if (command.empty()) return Status::Success;
 
     if (auto status = dispatch_builtin(command)) {
         return status.value();
     }
 
-    std::vector<char *> cmd;
-    for (auto &s : command) {
-        cmd.push_back(s.data());
-    }
     auto pid = fork();
+
     if (pid == 0) {
+        std::vector<char *> cmd;
+        for (auto &s : command) {
+            cmd.push_back(s.data());
+        }
+        cmd.push_back(nullptr);
+
         execvp(cmd[0], cmd.data());
-        auto msg = std::format("unrecognized command: {}\r\n", cmd[0]);
-        write_err(std::move(msg));
         _exit(127);
-    } else if (pid < 0) {
+    }
+
+    if (pid < 0) {
         write_err("error in fork");
         return Status::Failure;
     }
+
     int status = 0;
-    if (background_process) {
-        write_str(std::format("[{}]\r\n", std::to_string(pid)));
-        bg_processes.insert(pid);
-    } else {
-        waitpid(pid, &status, 0);
-        if (status != 0) {
-            write_err(
-                "returned " + std::to_string(WEXITSTATUS(status)) + "\r\n"
-            );
-        }
+    while (waitpid(pid, &status, 0) < 0) {
+        write_err("error in waitpid");
+        return Status::Failure;
     }
-    return static_cast<Status> WEXITSTATUS(status);
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return Status::Success;
+    }
+
+    return Status::Failure;
 }
 
 void Shell::reap_bg_processes() {
@@ -90,86 +90,71 @@ void Shell::reap_bg_processes() {
 
 void Evaluator::run(std::unique_ptr<List> &list) {
     last_status = eval_list(list);
-
-    // set status
 }
 
 Status Evaluator::eval_list(std::unique_ptr<List> &list) {
-    auto status = eval_and_or(list->and_or);
 
-    if (list->tail) {
-        status = eval_list_tail(list->tail).value_or(status);
+    auto bg =
+        (list->mid.empty() ? list->sep.value_or(ListSeparator::Semicolon)
+                           : list->mid[0].sep) == ListSeparator::Ampersand;
+
+    auto status =
+        bg ? start_bg_process(list->and_or) : eval_and_or(list->and_or);
+
+    for (size_t i = 0; i < list->mid.size(); i++) {
+        bg = ((i + 1 < list->mid.size())
+                  ? list->mid[i + 1].sep
+                  : list->sep.value_or(ListSeparator::Semicolon)) ==
+             ListSeparator::Ampersand;
+
+        status = bg ? start_bg_process(list->mid[i].and_or)
+                    : eval_and_or(list->mid[i].and_or);
     }
 
     return status;
 }
 
-std::optional<Status> Evaluator::eval_list_tail(
-    std::unique_ptr<ListTail> &list_tail
-) {
-    if (!list_tail->inner) {
-        return std::nullopt;
+Status Evaluator::start_bg_process(std::unique_ptr<AndOr> &and_or) {
+    auto pid = fork();
+    if (pid == 0) {
+        auto status = eval_and_or(and_or);
+        _exit(static_cast<int>(status));
     }
-    return std::visit(
-        [this](auto &ptr) -> std::optional<Status> {
-            using T = std::remove_cvref_t<decltype(ptr)>;
 
-            if constexpr (std::is_same_v<T, std::unique_ptr<List>>) {
-                return eval_list(ptr);
-            } else if constexpr (std::is_same_v<T, std::unique_ptr<ListTail>>) {
-                return eval_list_tail(ptr);
-            }
-        },
-        *list_tail->inner
-    );
+    if (pid < 0) {
+        write_err("error in fork");
+        return Status::Failure;
+    }
+
+    write_str(std::format("[{}]\r\n", std::to_string(pid)));
+    bg_processes.insert(pid);
+
+    return Status::Success;
 }
+
 Status Evaluator::eval_and_or(std::unique_ptr<AndOr> &and_or) {
+
     auto status = eval_pipeline(and_or->pipeline);
 
-    if (and_or->and_or_tail) {
-        status = eval_and_or_tail(status, and_or->and_or_tail);
+    auto &mid = and_or->mid;
+    for (size_t i = 0; i < mid.size(); i++) {
+        auto op = mid[i].op;
+        if (op == AndOrOperator::And && status == Status::Success) {
+            status = eval_pipeline(mid[i].pipeline);
+            continue;
+        }
+
+        if (op == AndOrOperator::Or && status == Status::Failure) {
+            status = eval_pipeline(mid[i].pipeline);
+            continue;
+        }
     }
 
-    return status;
-}
-Status Evaluator::eval_and_or_tail(
-    Status prev, std::unique_ptr<AndOrTail> &and_or_tail
-) {
-    auto status = prev;
-    if (and_or_tail->op == "&&" && prev == Status::Success) {
-        status = eval_pipeline(and_or_tail->pipeline);
-    } else if (and_or_tail->op == "||" && prev == Status::Failure) {
-        status = eval_pipeline(and_or_tail->pipeline);
-    }
-    if (and_or_tail->and_or_tail) {
-        return eval_and_or_tail(status, and_or_tail->and_or_tail);
-    }
     return status;
 }
 
 Status Evaluator::eval_pipeline(std::unique_ptr<Pipeline> &pipeline) {
-    auto status = eval_background(pipeline->bg);
-
-    if (pipeline->pipeline_tail) {
-        // skip for now
-        // status = eval_pipeline_tail(pipeline->pipeline_tail);
-    }
-    return status;
-}
-
-Status Evaluator::eval_background(std::unique_ptr<Background> &background) {
-    auto status =
-        execute_command(background->cmd, (background->bg_tail != nullptr));
-    if (background->bg_tail) {
-        status = eval_background_tail(background->bg_tail).value_or(status);
-    }
-    return status;
-}
-std::optional<Status> Evaluator::eval_background_tail(
-    std::unique_ptr<BackgroundTail> &background_tail
-) {
-    if (background_tail->list) return eval_list(background_tail->list);
-    return std::nullopt;
+    return execute_command(pipeline->cmd);
 }
 
 std::optional<Status> Evaluator::dispatch_builtin(
