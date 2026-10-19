@@ -5,6 +5,7 @@
 #include "rush/io.hpp"
 
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -22,18 +23,13 @@ Status Evaluator::execute_command(std::vector<std::string> command) {
     if (command.empty()) return Status::Success;
 
     if (auto status = dispatch_builtin(command)) {
-        return status.value();
+        return *status;
     }
 
     auto pid = fork();
 
     if (pid == 0) {
-        std::vector<char *> cmd;
-        for (auto &s : command) {
-            cmd.push_back(s.data());
-        }
-        cmd.push_back(nullptr);
-
+        auto cmd = prep_cmd(command);
         execvp(cmd[0], cmd.data());
         _exit(127);
     }
@@ -54,6 +50,78 @@ Status Evaluator::execute_command(std::vector<std::string> command) {
     }
 
     return Status::Failure;
+}
+
+Status Evaluator::execute_pipe(std::unique_ptr<Pipeline> &pipeline) {
+    auto cmd_count = pipeline->mid.size() + 1;
+    std::vector<pid_t> pids;
+    pids.reserve(cmd_count);
+
+    int prev_read = -1;
+
+    for (size_t i = 0; i < cmd_count; i++) {
+        auto &cmd = (i == 0) ? pipeline->cmd : pipeline->mid[i - 1].cmd;
+        int fd[2] = {-1, -1};
+        const bool has_next = i + 1 < cmd_count;
+        if (has_next) pipe(fd);
+
+        auto pid = fork();
+        if (pid == 0) {
+            if (prev_read != -1) {
+                dup2(prev_read, STDIN_FILENO);
+            }
+            if (has_next) {
+                dup2(fd[1], STDOUT_FILENO);
+                if (pipeline->mid[i].op == PipelineOperator::ErrPipe)
+                    dup2(fd[1], STDERR_FILENO);
+            }
+
+            close(prev_read);
+            close(fd[0]);
+            close(fd[1]);
+
+            if (auto status = dispatch_builtin(cmd)) {
+                _exit(static_cast<int>(*status));
+            }
+            auto preped = prep_cmd(cmd);
+            execvp(preped[0], preped.data());
+            _exit(127);
+        }
+        pids.push_back(pid);
+
+        close(fd[1]);
+        close(prev_read);
+
+        if (has_next) prev_read = fd[0];
+    }
+
+    int status = 0;
+    for (auto pid : pids) {
+        while (waitpid(pid, &status, 0) < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            perror("waitpid");
+            return Status::Failure;
+        }
+    }
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return Status::Success;
+    }
+
+    return Status::Failure;
+}
+
+std::vector<char *> Evaluator::prep_cmd(std::vector<std::string> &cmd) {
+    std::vector<char *> argv;
+    argv.reserve(cmd.size() + 1);
+
+    for (auto &arg : cmd)
+        argv.push_back(arg.data());
+
+    argv.push_back(nullptr);
+    return argv;
 }
 
 void Shell::reap_bg_processes() {
@@ -154,7 +222,8 @@ Status Evaluator::eval_and_or(std::unique_ptr<AndOr> &and_or) {
 }
 
 Status Evaluator::eval_pipeline(std::unique_ptr<Pipeline> &pipeline) {
-    return execute_command(pipeline->cmd);
+    return pipeline->mid.empty() ? execute_command(pipeline->cmd)
+                                 : execute_pipe(pipeline);
 }
 
 std::optional<Status> Evaluator::dispatch_builtin(

@@ -26,8 +26,9 @@ class Evaluator {
     Evaluator(BGProcesses &b, std::string &s, bool &e, int &code)
         : bg_processes(b), pwd(s), exit(e), exit_code(code) {}
 
+    std::vector<char *> prep_cmd(std::vector<std::string> &cmd);
     Status execute_command(std::vector<std::string>);
-    Status execute_pipe(std::vector<char *> &, std::vector<char *> &, bool);
+    Status execute_pipe(std::unique_ptr<Pipeline> &);
     void run(std::unique_ptr<List> &list);
     Status eval_list(std::unique_ptr<List> &);
     Status start_bg_process(std::unique_ptr<AndOr> &);
