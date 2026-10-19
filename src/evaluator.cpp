@@ -66,6 +66,7 @@ Status Evaluator::execute_pipe(std::unique_ptr<Pipeline> &pipeline) {
         if (has_next) pipe(fd);
 
         auto pid = fork();
+        if (pid < 0) perror("fork");
         if (pid == 0) {
             if (prev_read != -1) {
                 dup2(prev_read, STDIN_FILENO);
@@ -76,9 +77,9 @@ Status Evaluator::execute_pipe(std::unique_ptr<Pipeline> &pipeline) {
                     dup2(fd[1], STDERR_FILENO);
             }
 
-            close(prev_read);
-            close(fd[0]);
-            close(fd[1]);
+            if (prev_read != -1) close(prev_read);
+            if (fd[0] != -1) close(fd[0]);
+            if (fd[1] != -1) close(fd[1]);
 
             if (auto status = dispatch_builtin(cmd)) {
                 _exit(static_cast<int>(*status));
@@ -89,8 +90,8 @@ Status Evaluator::execute_pipe(std::unique_ptr<Pipeline> &pipeline) {
         }
         pids.push_back(pid);
 
-        close(fd[1]);
-        close(prev_read);
+        if (fd[1] != -1) close(fd[1]);
+        if (prev_read != -1) close(prev_read);
 
         if (has_next) prev_read = fd[0];
     }
