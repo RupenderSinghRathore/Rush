@@ -33,12 +33,10 @@ class Evaluator {
     Status eval_list(std::unique_ptr<List> &);
     Status start_bg_process(std::unique_ptr<AndOr> &);
     Status eval_and_or(std::unique_ptr<AndOr> &);
-    Status eval_and_or_mid(Status prev, std::unique_ptr<AndOrMid> &);
     Status eval_pipeline(std::unique_ptr<Pipeline> &);
-    Status eval_pipeline_mid(std::unique_ptr<PipelineMid> &);
 
     std::optional<Status> dispatch_builtin(const std::vector<std::string> &);
     Status builtin_cd(const std::span<const std::string> &);
     Status builtin_exit(const std::span<const std::string> &);
-    Status builtin_echo(const std::span<const std::string> &);
+    // Status builtin_echo(const std::span<const std::string> &);
 };
