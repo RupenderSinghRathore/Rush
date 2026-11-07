@@ -6,7 +6,7 @@
 class Editor {
   private:
     std::string line;
-    size_t index;
+    size_t index = 0;
 
   public:
     Editor() = default;
