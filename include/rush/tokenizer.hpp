@@ -29,6 +29,7 @@ constexpr std::array<std::pair<std::string_view, TokenType>, 6> operators{{
 struct Token {
     TokenType type;
     std::string text;
+    bool operator==(const Token &) const = default;
 };
 
 class Tokenizer {

@@ -31,17 +31,16 @@ add_compile_options(
     $<$<CONFIG:Release>:-DNDEBUG>
 )
 
-# Automatically find and configure all test files in the test/ directory
-file(GLOB TEST_SOURCES test/test_*.cpp)
+# list test files
+set(TEST_SOURCES
+    test/main.cpp
+    test/test_tokenizer.cpp
+)
 
-foreach(test_file ${TEST_SOURCES})
-    # Extract filename without extension
-    get_filename_component(test_name ${test_file} NAME_WE)
+# Build unified test runner executable
+add_executable(unit_tests ${TEST_SOURCES})
+target_link_libraries(unit_tests PRIVATE rush_lib)
+target_include_directories(unit_tests PRIVATE include)
 
-    add_executable(${test_name} ${test_file})
-    target_link_libraries(${test_name} PRIVATE rush_lib)
-    target_include_directories(${test_name} PRIVATE include)
-
-    # Register with CTest
-    add_test(NAME ${test_name} COMMAND ${test_name})
-endforeach()
+# Register a single test with CTest
+add_test(NAME AllUnitTests COMMAND unit_tests)
