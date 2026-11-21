@@ -83,15 +83,15 @@ template <typename T> bool deep_equal(const T &a, const T &b) {
 }
 
 // Macros
-#define ASSERT_EQ(actual, expected)                                            \
+#define ASSERT_EQ(got, expected)                                               \
     do {                                                                       \
-        auto act = (actual);                                                   \
+        auto act = (got);                                                      \
         auto exp = (expected);                                                 \
         if (!deep_equal(act, exp)) {                                           \
             std::cerr << "  [FAIL] " << __FILE__ << ":" << __LINE__ << "\n"    \
-                      << " -> Assertion failed: " << #actual                   \
+                      << " -> Assertion failed: " << #got                      \
                       << " == " << #expected << "\n\n";                        \
-            std::cerr << "\tactual: " << act << "\n";                          \
+            std::cerr << "\tgot: " << act << "\n";                             \
             std::cerr << "\texpected: " << exp << "\n";                        \
             TestRegistry::instance().failed++;                                 \
             return;                                                            \

@@ -35,10 +35,31 @@ inline std::ostream &operator<<(std::ostream &os, const Token &t) {
 
 TEST(test_tokenizer_tokenize) {
     Tokenizer t{};
-    auto input = "ls -la ";
-    auto expect_tokens = std::vector<Token>{
-        Token{TokenType::Word, "ls"}, Token{TokenType::Word, "-la"}
+    struct test_case {
+        std::string input;
+        std::vector<Token> expect;
     };
-    t.tokenize(input);
-    ASSERT_EQ(t.tokens, expect_tokens);
+
+    std::vector<test_case> tests = {
+        {
+            .input = "ls -la ",
+            .expect =
+                std::vector<Token>{
+                    Token{TokenType::Word, "ls"}, Token{TokenType::Word, "-la"}
+                },
+        },
+        {
+            .input = "ls -la",
+            .expect = std::vector<Token>{Token{TokenType::Word, "ls"}},
+        }
+    };
+
+    for (auto &tc : tests) {
+        t.tokenize(tc.input);
+        auto got = t.owned_tokens();
+
+        ASSERT_EQ(got, tc.expect);
+
+        t.clear();
+    }
 }
