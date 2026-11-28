@@ -46,7 +46,7 @@ void Shell::handle_enter() {
         return;
     }
 
-    if (!tokenizer.is_empty()) {
+    if (tokenizer.has_processed_tokens()) {
         try {
             parser.reset(tokenizer.owned_tokens());
             auto list = parser.parse_start();

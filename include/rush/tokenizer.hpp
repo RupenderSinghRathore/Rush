@@ -35,7 +35,7 @@ struct Token {
 class Tokenizer {
   private:
     Token token;
-    std::vector<Token> tokens;
+    std::vector<Token> processed_tokens;
     char quote = '\0';
     bool started = false;
 
@@ -43,12 +43,13 @@ class Tokenizer {
     bool is_identifier(char);
     TokenType check_operator();
 
+    void consume_char(char);
+
   public:
     Tokenizer() = default;
     void tokenize(std::string);
-    void consume_char(char);
     void clear();
     bool is_quoted();
-    bool is_empty();
+    bool has_processed_tokens();
     std::vector<Token> owned_tokens();
 };

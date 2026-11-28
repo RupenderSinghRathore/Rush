@@ -34,7 +34,7 @@ void Tokenizer::consume_char(char c) {
             if (check_operator() == TokenType::Unknown)
                 token.type = TokenType::Word;
 
-            tokens.push_back(std::move(token));
+            processed_tokens.push_back(std::move(token));
             token.text.clear();
             started = false;
             token.type = TokenType::Unknown;
@@ -52,7 +52,7 @@ void Tokenizer::consume_char(char c) {
 }
 
 void Tokenizer::clear() {
-    tokens.clear();
+    processed_tokens.clear();
     token = {};
     quote = '\0';
     started = false;
@@ -70,6 +70,8 @@ bool Tokenizer::is_identifier(char c) {
 
 bool Tokenizer::is_quoted() { return quote; }
 
-bool Tokenizer::is_empty() { return tokens.empty(); }
+bool Tokenizer::has_processed_tokens() { return !processed_tokens.empty(); }
 
-std::vector<Token> Tokenizer::owned_tokens() { return std::move(tokens); }
+std::vector<Token> Tokenizer::owned_tokens() {
+    return std::move(processed_tokens);
+}
